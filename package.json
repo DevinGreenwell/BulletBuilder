@@ -82,6 +82,7 @@
     "@types/node": "^20",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
+    "@types/webpack": "^5.28.5",
     "eslint": "^9",
     "eslint-config-next": "15.1.4",
     "eslint-plugin-react-hooks": "^5.2.0",
