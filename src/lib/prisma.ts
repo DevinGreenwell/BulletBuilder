@@ -2,13 +2,33 @@
 // Mock Prisma client for deployment
 // This is a temporary solution until Prisma is properly set up
 
-// Define a mock PrismaClient type to satisfy TypeScript
+// Define a mock PrismaClient type with required models
 export class PrismaClient {
-  constructor(options?: any) {}
-  // Add any methods your app is using
+  work: {
+    findMany: (args?: any) => Promise<any[]>;
+    findUnique: (args?: any) => Promise<any | null>;
+    create: (args?: any) => Promise<any>;
+    update: (args?: any) => Promise<any>;
+    delete: (args?: any) => Promise<any>;
+    // Add other methods as needed
+  };
+
+  constructor(options?: any) {
+    // Initialize models
+    this.work = {
+      findMany: async () => [],
+      findUnique: async () => null,
+      create: async (args) => args.data,
+      update: async (args) => args.data,
+      delete: async () => ({}),
+      // Implement other methods as needed
+    };
+  }
+
   connect(): Promise<void> {
     return Promise.resolve();
   }
+  
   disconnect(): Promise<void> {
     return Promise.resolve();
   }
