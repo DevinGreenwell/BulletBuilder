@@ -182,9 +182,14 @@ export default function SpeechToText({
     </div>
   );
 }
+interface SpeechRecognitionConstructor {
+  new(): SpeechRecognition;
+  prototype: SpeechRecognition;
+}
+
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition; // Should now be found
-    webkitSpeechRecognition: typeof SpeechRecognition; // Should now be found
+    SpeechRecognition: SpeechRecognitionConstructor;
+    webkitSpeechRecognition: SpeechRecognitionConstructor;
   }
 }
