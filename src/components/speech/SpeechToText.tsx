@@ -182,11 +182,9 @@ export default function SpeechToText({
     </div>
   );
 }
-
-// Type definitions for browser compatibility
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: typeof SpeechRecognition; // Should now be found
+    webkitSpeechRecognition: typeof SpeechRecognition; // Should now be found
   }
 }
