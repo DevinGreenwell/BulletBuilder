@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateBullet, ChatCompletionMessageParam } from '@/lib/openai'; // Import the type
+import { generateBullet } from '@/lib/openai';
+import type { ChatCompletionMessageParam } from 'openai'; // <-- Import directly from 'openai'
 
 interface GenerateRequestBody {
   achievement?: string; // Make optional since we might use history instead
