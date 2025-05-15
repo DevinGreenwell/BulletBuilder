@@ -9,11 +9,11 @@ import RankSelector from '@/components/ui/RankSelector';
 import SpeechHint from '@/components/speech/SpeechHint'; // Assuming you have this component
 import { Card } from '@/components/ui/card'; // Assuming Card is from shadcn
 
-import { Bullet } from '@/types/Bullet';
+import type { Bullet } from '@/types/Bullet';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'bullets' | 'oer'>('chat');
-  const [bullets, setBullets] = useState<Bullet[]>([]);
+  const [bullets, setBullets] = useState<(Bullet & { id: string })[]>([]);
   const [rankCategory, setRankCategory] = useState<'Officer' | 'Enlisted'>('Officer');
   const [rank, setRank] = useState('O3'); // Default Officer rank
 
@@ -46,9 +46,9 @@ const handleBulletGenerated = (newBullet: Bullet) => {
     return;
   }
   
-  // Update the state with the new bullet
+  // Update the state with the new bullet, ensuring id is non-null
   setBullets(prevBullets => {
-    const updatedBullets = [...prevBullets, newBullet];
+    const updatedBullets = [...prevBullets, { ...newBullet, id: newBullet.id! }];
     console.log("page.tsx: Updated bullets state:", updatedBullets);
     return updatedBullets;
   });
@@ -60,7 +60,7 @@ const handleBulletGenerated = (newBullet: Bullet) => {
 
   // Handler for when bullets are modified in BulletEditor
   const handleBulletsChanged = (updatedBullets: Bullet[]) => {
-    setBullets(updatedBullets);
+    setBullets(updatedBullets.map(bullet => ({ ...bullet, id: bullet.id! })));
   };
 
   // Helper to get the main evaluation title

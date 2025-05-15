@@ -28,8 +28,8 @@ export interface ApiMessage {
   content: string;
 }
 
-export interface BulletData {
-  id: string;
+export interface BulletData { // This is what ChatInterface creates
+  id: string; // This is fine, it's assignable to string | undefined
   competency: string;
   content: string;
   isApplied: boolean;

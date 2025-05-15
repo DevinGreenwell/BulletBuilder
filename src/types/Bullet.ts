@@ -1,10 +1,9 @@
 export interface Bullet {
-  id?: string;
-  content: string;
+  id?: string; // Keep as string if it's always defined when in the bullets array
   competency: string;
-  rankCategory?: string;
-  rank?: string;
-  isApplied: boolean; // Add this missing property
-  category: string;   // Add this missing property
-  // Any other properties needed
+  content: string;
+  isApplied: boolean;
+  category: string;
+  createdAt?: number;
+  source?: string;
 }

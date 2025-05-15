@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronUp, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 
+// Removed duplicate Bullet type import to avoid conflict with local declaration
 interface Bullet {
   id: string;
   competency: string;
@@ -18,15 +19,12 @@ interface Bullet {
 }
 
 interface BulletEditorProps {
-  initialBullets?: Bullet[];
+  initialBullets?: Bullet[]; // Now uses the imported Bullet type
   onBulletsChanged?: (bullets: Bullet[]) => void;
 }
 
-export default function BulletEditor({ initialBullets = [], onBulletsChanged }: BulletEditorProps) {
-  console.log("BulletEditor: received initialBullets:", initialBullets);
-  
-  // Persisted bullets state
-  const [bullets, setBullets] = useState<Bullet[]>(initialBullets);
+export default function BulletEditor({ initialBullets, onBulletsChanged }: BulletEditorProps) {
+  const [bullets, setBullets] = useState<Bullet[]>(initialBullets || []);
   
   // State for new bullet form
   const [showNewBulletForm, setShowNewBulletForm] = useState(false);

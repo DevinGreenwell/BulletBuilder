@@ -18,10 +18,11 @@ interface Bullet {
 }
 
 interface OERPreviewProps {
-  bullets?: Bullet[];
+  bullets?: (Bullet & { id: string })[];
   rankCategory?: string;
   rank?: string;
 }
+
 
 // Type definitions for component state
 type BulletWeights = { [bulletId: string]: string };
@@ -143,14 +144,12 @@ useEffect(() => {
     
     try {
       // Temporarily only save the content property since that's all your schema supports
-      const workData = {
+      const workData: WorkData = {
         userId: session.user.id,
         content: localBullets,
-        // We'll save the other data within the content field for now
-        // by creating a structured object
-        _tempEvaluationData: evaluationData,
-        _tempBulletWeights: bulletWeights,
-        _tempSummaries: summaries
+        evaluationData: evaluationData,
+        bulletWeights: bulletWeights,
+        summaries: summaries
       };
       
       const method = workId ? 'PUT' : 'POST';
