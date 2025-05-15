@@ -17,8 +17,6 @@ const poppins = Poppins({
 });
 
 
-const inter = Inter({ subsets: ['latin'] });
-
 export const metadata: Metadata = { /* ... */ };
 export const viewport: Viewport = { /* ... */ };
 
