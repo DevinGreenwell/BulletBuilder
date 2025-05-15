@@ -1,5 +1,10 @@
-import type { ChatCompletionMessageParam } from '@/lib/openai';
 import OpenAI from 'openai';
+
+export interface ChatCompletionMessageParam {
+  role: 'system' | 'user' | 'assistant' | 'function';
+  content: string;
+  name?: string;
+}
 
 // --- OpenAI Client Initialization ---
 const apiKeyFromEnv = process.env.OPENAI_API_KEY;
@@ -80,10 +85,11 @@ Competency description: ${competencyDescription}.
     console.log(`[openai.ts] History length: ${messagesToSend.length}`);
     console.log("------------------------------------------------------------");
 
-    // Call the OpenAI API
+    // Call the OpenAI API with sanitized messages cast to the expected type
+    const sanitizedMessages = messagesToSend.map(m => m.role === "function" ? { ...m, name: m.name ?? "" } : m) as unknown as Parameters<typeof openai.chat.completions.create>[0]['messages'];
     const response = await openai.chat.completions.create({
       model: "gpt-4.1-nano-2025-04-14", // Or your preferred model
-      messages: messagesToSend,
+      messages: sanitizedMessages,
       temperature: 0.6,
       max_tokens: 200,
     });

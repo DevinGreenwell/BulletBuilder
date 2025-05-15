@@ -1,7 +1,8 @@
 // --- START OF CORRECTED src/app/api/generate/route.ts ---
 import { NextRequest, NextResponse } from 'next/server';
 import { generateBullet } from '@/lib/openai';
-import type { ChatCompletionMessageParam } from 'openai'; // Correct type import
+// Use the same type definition from your OpenAI lib
+import type { ChatCompletionMessageParam } from '@/lib/openai';
 
 interface GenerateRequestBody {
   achievement?: string; // This can be the very first message from the user if no history
