@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateBullet } from '@/lib/openai';
-import type { ChatCompletionMessageParam } from 'openai'; // <-- Import directly from 'openai'
+import { ChatCompletionRequestMessage } from 'openai';
 
 interface GenerateRequestBody {
-  achievement?: string; // Make optional since we might use history instead
+  achievement?: string;
   competency: string;
   rankCategory?: string;
   rank?: string;
-  history?: ChatCompletionMessageParam[]; // Chat history (array of messages)
+  history?: ChatCompletionRequestMessage[]; // This should now work
 }
 
 export async function POST(request: NextRequest) {
@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
     const responseContent = await generateBullet({
       messages,
       competency,
-      achievement: body.achievement,
       rankCategory,
       rank
     });
