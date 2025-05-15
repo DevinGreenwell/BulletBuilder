@@ -1,9 +1,10 @@
-// src/types/Bullet.ts
 export interface Bullet {
   id?: string;
   content: string;
   competency: string;
   rankCategory?: string;
   rank?: string;
-  // Add any other properties your Bullet type needs
+  isApplied: boolean; // Add this missing property
+  category: string;   // Add this missing property
+  // Any other properties needed
 }
