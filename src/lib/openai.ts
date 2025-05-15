@@ -1,6 +1,5 @@
-// --- START OF COMPLETE src/lib/openai.ts ---
-
-import OpenAI, { ChatCompletionMessageParam } from 'openai';
+import type { ChatCompletionMessageParam } from '@/lib/openai';
+import OpenAI from 'openai';
 
 // --- OpenAI Client Initialization ---
 const apiKeyFromEnv = process.env.OPENAI_API_KEY;
