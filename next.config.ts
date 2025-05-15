@@ -1,17 +1,26 @@
-// next.config.js
-const path = require('path');
+// next.config.ts
+import type { NextConfig } from 'next';
+import type { Configuration as WebpackConfiguration } from 'webpack'; // Make sure this import is present
 
-module.exports = {
-  reactStrictMode: true,
+const nextConfig: NextConfig = {
+  // ... any image domains or other settings ...
   images: {
-    domains: ['lh3.googleusercontent.com'],
+    remotePatterns: [/* ... if you had this before ... */],
+    domains: ['lh3.googleusercontent.com'], // This was in your log
   },
-  webpack: (config) => {
+  reactStrictMode: true,
+
+  webpack: (
+    config: WebpackConfiguration, // <-- THIS TYPE ANNOTATION IS CRUCIAL
+    // { buildId, dev, isServer, defaultLoaders, webpack } // Other params
+  ) => {
+    config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      // Redirect imports of '@prisma/client/default' to the actual client entry
-      '@prisma/client/default': require.resolve('@prisma/client'),
+      // Your Prisma alias or other aliases
     };
     return config;
   },
 };
+
+export default nextConfig;
