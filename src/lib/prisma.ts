@@ -14,20 +14,18 @@ export class PrismaClient {
   }
 }
 
-// Create the mock prisma instance
-const prisma = new PrismaClient();
-
-// Export the mock instance
-export { prisma };
-export default prisma;import { PrismaClient } from '@prisma/client';
+// Create a singleton instance
 declare global {
   // prevent creating multiple instances in dev
   var prisma: PrismaClient | undefined;
 }
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-export const prisma = globalForPrisma.prisma || new PrismaClient();
+// Create the mock prisma instance using singleton pattern
+const prisma = global.prisma || new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
   global.prisma = prisma;
 }
+
+// Export the mock instance
+export default prisma;
