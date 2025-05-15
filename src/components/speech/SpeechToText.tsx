@@ -187,9 +187,4 @@ interface SpeechRecognitionConstructor {
   prototype: SpeechRecognition;
 }
 
-declare global {
-  interface Window {
-    SpeechRecognition: SpeechRecognitionConstructor;
-    webkitSpeechRecognition: SpeechRecognitionConstructor;
-  }
-}
+// Removed redundant global declaration since 'SpeechRecognition' is already declared in env.d.ts.
