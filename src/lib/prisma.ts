@@ -27,5 +27,6 @@ if (process.env.NODE_ENV !== 'production') {
   global.prisma = prisma;
 }
 
-// Export the mock instance
+// Export both as default and named export to support different import styles
+export { prisma };
 export default prisma;
