@@ -1,63 +1,72 @@
+// --- START OF CORRECTED src/app/api/generate/route.ts ---
 import { NextRequest, NextResponse } from 'next/server';
 import { generateBullet } from '@/lib/openai';
-import { ChatCompletionRequestMessage } from 'openai';
+import type { ChatCompletionMessageParam } from 'openai'; // Correct type import
 
 interface GenerateRequestBody {
-  achievement?: string;
+  achievement?: string; // This can be the very first message from the user if no history
   competency: string;
   rankCategory?: string;
   rank?: string;
-  history?: ChatCompletionRequestMessage[]; // This should now work
+  history?: ChatCompletionMessageParam[]; // Full conversation history (user + assistant messages)
 }
 
 export async function POST(request: NextRequest) {
   console.log("--- /api/generate: Request received ---");
   try {
     const body = await request.json() as GenerateRequestBody;
-    
-    // Basic validation
+
+    // --- Validation ---
     if (!body.competency) {
+      console.error("[api/generate] Validation Failed: Competency is required.");
       return NextResponse.json(
         { error: 'Competency is required', success: false },
         { status: 400 }
       );
     }
-    
-    // Check if we have either achievement or history (or both)
-    if (!body.achievement && (!body.history || body.history.length === 0)) {
+
+    // history will contain all prior messages.
+    // The 'achievement' field might be used by the client to send the LATEST user message
+    // if it's not already appended to the history array before sending.
+    // Or, the client might always ensure the latest user message is the last item in 'history'.
+    // For robustness, let's assume 'history' if present, is the source of truth for conversation.
+    // If 'history' is empty or not present, AND 'achievement' is present, then 'achievement' is the first user message.
+
+    let messagesToProcess: ChatCompletionMessageParam[];
+
+    if (body.history && body.history.length > 0) {
+      messagesToProcess = body.history;
+      console.log(
+        `[api/generate] Using provided history. Last message: "${
+          messagesToProcess[messagesToProcess.length - 1].content.substring(0,50)
+        }..." (${messagesToProcess.length} total messages)`
+      );
+    } else if (body.achievement) {
+      messagesToProcess = [{ role: 'user', content: body.achievement }];
+      console.log(`[api/generate] No history provided, using achievement as first message: "${body.achievement.substring(0,50)}..."`);
+    } else {
+      console.error("[api/generate] Validation Failed: Neither achievement nor history provided.");
       return NextResponse.json(
-        { error: 'Either achievement or conversation history is required', success: false },
+        { error: 'Either an initial achievement or conversation history is required', success: false },
         { status: 400 }
       );
     }
-    
-    // Log the initial request details (safely)
-    if (body.history && body.history.length > 0) {
-      console.log("Request with conversation history (first message):", 
-        body.history[0].content.substring(0, 100) + (body.history[0].content.length > 100 ? '...' : ''));
-      console.log(`History length: ${body.history.length} messages`);
-    } else {
-      console.log("Request with achievement:", body.achievement);
-    }
+    // --- End Validation and Message Preparation ---
 
     const { competency, rankCategory = 'Officer', rank = 'O3' } = body;
 
-    console.log(`Calling generateBullet for ${rankCategory} ${rank}, competency: ${competency}`);
+    console.log(`[api/generate] Calling generateBullet for ${rankCategory} ${rank}, competency: ${competency}`);
 
-    // Prepare messages - either use history if provided or create a single message from achievement
-    const messages = body.history || [];
-    
     // Call the updated generateBullet function
     const responseContent = await generateBullet({
-      messages,
+      messages: messagesToProcess, // This is now guaranteed to be ChatCompletionMessageParam[]
       competency,
       rankCategory,
       rank
     });
-    
-    console.log("generateBullet successful. Result length:", responseContent.length);
 
-    // Return the response
+    console.log("[api/generate] generateBullet successful. Response content length:", responseContent.length);
+
     return NextResponse.json({
       response: responseContent,
       success: true
@@ -65,12 +74,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('--- ERROR in /api/generate ---:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
     console.error('Sending error response:', errorMessage);
-    
+
     return NextResponse.json(
-      { error: `Failed to process message: ${errorMessage}`, success: false },
+      // Avoid leaking too many details from internal errors to the client
+      { error: 'Failed to process your message. Please try again.', success: false },
       { status: 500 }
     );
   }
 }
+// --- END OF CORRECTED src/app/api/generate/route.ts ---

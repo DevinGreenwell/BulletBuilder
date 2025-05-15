@@ -20,7 +20,7 @@ const openai = new OpenAI({
 
 // For conversational bullet generation
 interface GenerateBulletParams {
-  messages: ChatCompletionMessageParam[];
+  messages: ChatCompletionMessageParam[]; // This should be correct
   competency: string;
   rankCategory?: string;
   rank?: string;
