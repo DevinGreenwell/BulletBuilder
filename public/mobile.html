@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>USCG Mobile Evaluation Generator</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    h1 {
+      font-size: 24px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .card {
+      background-color: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h2 {
+      font-size: 18px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    select, textarea, input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    button {
+      width: 100%;
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #99c2e8;
+    }
+    .bullet {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .bullet-competency {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      margin-top: 32px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>USCG Evaluation Generator</h1>
+    
+    <div class="card">
+      <h2>Select Rank</h2>
+      <div>
+        <label for="rankCategory">Rank Category:</label>
+        <select id="rankCategory">
+          <option value="Officer">Officer</option>
+          <option value="Enlisted">Enlisted</option>
+        </select>
+      </div>
+      
+      <div>
+        <label for="rank">Specific Rank:</label>
+        <select id="rank">
+          <option value="O1">O1 - Ensign</option>
+          <option value="O2">O2 - Lieutenant Junior Grade</option>
+          <option value="O3">O3 - Lieutenant</option>
+          <option value="O4">O4 - Lieutenant Commander</option>
+          <option value="O5">O5 - Commander</option>
+          <option value="O6">O6 - Captain</option>
+          <option value="W2">W2 - Chief Warrant Officer</option>
+          <option value="W3">W3 - Chief Warrant Officer</option>
+          <option value="W4">W4 - Chief Warrant Officer</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Generate Bullets</h2>
+      <div>
+        <label for="competency">Competency Area:</label>
+        <select id="competency">
+          <!-- Officer competencies by default -->
+          <option value="Planning & Preparedness">Planning & Preparedness</option>
+          <option value="Using Resources">Using Resources</option>
+          <option value="Results/Effectiveness">Results/Effectiveness</option>
+          <option value="Adaptability">Adaptability</option>
+          <option value="Professional Competence">Professional Competence</option>
+          <option value="Speaking and Listening">Speaking and Listening</option>
+          <option value="Writing">Writing</option>
+          <option value="Looking Out For Others">Looking Out For Others</option>
+          <option value="Developing Others">Developing Others</option>
+          <option value="Directing Others">Directing Others</option>
+          <option value="Teamwork">Teamwork</option>
+          <option value="Workplace Climate">Workplace Climate</option>
+          <option value="Evaluations">Evaluations</option>
+          <option value="Initiative">Initiative</option>
+          <option value="Judgment">Judgment</option>
+          <option value="Responsibility">Responsibility</option>
+          <option value="Professional Presence">Professional Presence</option>
+          <option value="Health and Well Being">Health and Well Being</option>
+        </select>
+      </div>
+      
+      <div>
+        <label for="achievement">Your Achievement:</label>
+        <textarea id="achievement" placeholder="Describe your achievement..."></textarea>
+      </div>
+      
+      <button id="generateBtn">Generate Bullet</button>
+    </div>
+    
+    <div id="resultsContainer" class="card" style="display: none;">
+      <h2>Generated Bullets</h2>
+      <div id="bulletsList"></div>
+    </div>
+    
+    <div class="footer">
+      <p>This is a simplified mobile version of the USCG Evaluation Report Generator.</p>
+      <p>For full functionality, please use the desktop version.</p>
+    </div>
+  </div>
+
+  <script>
+    // Officer competencies
+    const officerCompetencies = [
+      'Planning & Preparedness',
+      'Using Resources',
+      'Results/Effectiveness',
+      'Adaptability',
+      'Professional Competence',
+      'Speaking and Listening',
+      'Writing',
+      'Looking Out For Others',
+      'Developing Others',
+      'Directing Others',
+      'Teamwork',
+      'Workplace Climate',
+      'Evaluations',
+      'Initiative',
+      'Judgment',
+      'Responsibility',
+      'Professional Presence',
+      'Health and Well Being'
+    ];
+
+    // Enlisted E4-E6 competencies
+    const enlistedE4E6Competencies = [
+      'Military Bearing',
+      'Customs, Courtesies, and Traditions',
+      'Quality of Work',
+      'Technical Proficiency',
+      'Initiative',
+      'Decision Making and Problem Solving',
+      'Military Readiness',
+      'Self-Awareness and Learning',
+      'Team Building',
+      'Respect for Others',
+      'Accountability and Responsibility',
+      'Influencing Others',
+      'Effective Communication'
+    ];
+
+    // Enlisted E7-E8 competencies
+    const enlistedE7E8Competencies = [
+      'Military Bearing',
+      'Customs, Courtesies, and Traditions',
+      'Quality of Work',
+      'Technical Proficiency',
+      'Initiative',
+      'Strategic Thinking',
+      'Decision Making and Problem Solving',
+      'Military Readiness',
+      'Self-Awareness and Learning',
+      'Partnering',
+      'Respect for Others',
+      'Accountability and Responsibility',
+      'Workforce Management',
+      'Effective Communication',
+      'Chiefs Mess Leadership and Participation'
+    ];
+
+    // DOM elements
+    const rankCategorySelect = document.getElementById('rankCategory');
+    const rankSelect = document.getElementById('rank');
+    const competencySelect = document.getElementById('competency');
+    const achievementTextarea = document.getElementById('achievement');
+    const generateBtn = document.getElementById('generateBtn');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const bulletsList = document.getElementById('bulletsList');
+
+    // Update rank options based on rank category
+    rankCategorySelect.addEventListener('change', function() {
+      const category = this.value;
+      rankSelect.innerHTML = '';
+      
+      if (category === 'Officer') {
+        const officerRanks = [
+          { value: 'O1', label: 'O1 - Ensign' },
+          { value: 'O2', label: 'O2 - Lieutenant Junior Grade' },
+          { value: 'O3', label: 'O3 - Lieutenant' },
+          { value: 'O4', label: 'O4 - Lieutenant Commander' },
+          { value: 'O5', label: 'O5 - Commander' },
+          { value: 'O6', label: 'O6 - Captain' },
+          { value: 'W2', label: 'W2 - Chief Warrant Officer' },
+          { value: 'W3', label: 'W3 - Chief Warrant Officer' },
+          { value: 'W4', label: 'W4 - Chief Warrant Officer' }
+        ];
+        
+        officerRanks.forEach(rank => {
+          const option = document.createElement('option');
+          option.value = rank.value;
+          option.textContent = rank.label;
+          rankSelect.appendChild(option);
+        });
+        
+        updateCompetencies(officerCompetencies);
+      } else {
+        const enlistedRanks = [
+          { value: 'E4', label: 'E4 - Petty Officer Third Class' },
+          { value: 'E5', label: 'E5 - Petty Officer Second Class' },
+          { value: 'E6', label: 'E6 - Petty Officer First Class' },
+          { value: 'E7', label: 'E7 - Chief Petty Officer' },
+          { value: 'E8', label: 'E8 - Senior Chief Petty Officer' }
+        ];
+        
+        enlistedRanks.forEach(rank => {
+          const option = document.createElement('option');
+          option.value = rank.value;
+          option.textContent = rank.label;
+          rankSelect.appendChild(option);
+        });
+        
+        updateCompetencies(enlistedE4E6Competencies);
+      }
+    });
+
+    // Update competencies based on rank
+    rankSelect.addEventListener('change', function() {
+      const category = rankCategorySelect.value;
+      const rank = this.value;
+      
+      if (category === 'Officer') {
+        updateCompetencies(officerCompetencies);
+      } else {
+        if (rank === 'E7' || rank === 'E8') {
+          updateCompetencies(enlistedE7E8Competencies);
+        } else {
+          updateCompetencies(enlistedE4E6Competencies);
+        }
+      }
+    });
+
+    // Helper function to update competency options
+    function updateCompetencies(competencies) {
+      competencySelect.innerHTML = '';
+      
+      competencies.forEach(comp => {
+        const option = document.createElement('option');
+        option.value = comp;
+        option.textContent = comp;
+        competencySelect.appendChild(option);
+      });
+    }
+
+    // Generate bullet when button is clicked
+    generateBtn.addEventListener('click', async function() {
+      const achievement = achievementTextarea.value.trim();
+      if (!achievement) return;
+      
+      // Disable button and show loading state
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'Generating...';
+      
+      try {
+        // Simulate API call with sample responses
+        // In a real implementation, this would call your backend API
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        const competency = competencySelect.value;
+        const rankCategory = rankCategorySelect.value;
+        const rank = rankSelect.value;
+        
+        // Generate a sample bullet based on the input
+        // This is where you would normally process the API response
+        const bullet = generateSampleBullet(achievement, competency, rankCategory, rank);
+        
+        // Display the result
+        displayBullet(competency, bullet);
+        
+        // Clear the input
+        achievementTextarea.value = '';
+      } catch (error) {
+        alert('An error occurred. Please try again.');
+        console.error(error);
+      } finally {
+        // Re-enable button
+        generateBtn.disabled = false;
+        generateBtn.textContent = 'Generate Bullet';
+      }
+    });
+
+    // Helper function to display a bullet
+    function displayBullet(competency, content) {
+      // Show results container if it's hidden
+      resultsContainer.style.display = 'block';
+      
+      // Create bullet element
+      const bulletElement = document.createElement('div');
+      bulletElement.className = 'bullet';
+      
+      const competencyElement = document.createElement('div');
+      competencyElement.className = 'bullet-competency';
+      competencyElement.textContent = competency;
+      
+      const contentElement = document.createElement('div');
+      contentElement.textContent = content;
+      
+      bulletElement.appendChild(competencyElement);
+      bulletElement.appendChild(contentElement);
+      
+      // Add to list
+      bulletsList.appendChild(bulletElement);
+    }
+
+    // Helper function to generate a sample bullet (for demo purposes)
+    function generateSampleBullet(achievement, competency, rankCategory, rank) {
+      // In a real implementation, this would be replaced with the actual API response
+      const prefix = rankCategory === 'Officer' ? 
+        'Led and coordinated' : 
+        (rank === 'E7' || rank === 'E8' ? 'Expertly managed and directed' : 'Skillfully executed');
+      
+      const achievementWords = achievement.split(' ');
+      const shortAchievement = achievementWords.length > 5 ? 
+        achievementWords.slice(0, 5).join(' ') + '...' : 
+        achievement;
+      
+      return `${prefix} ${shortAchievement}; demonstrated exceptional ${competency.toLowerCase()} skills resulting in significant operational improvements and recognition from leadership.`;
+    }
+  </script>
+</body>
+</html>
