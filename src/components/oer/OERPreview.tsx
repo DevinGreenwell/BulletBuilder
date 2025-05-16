@@ -31,7 +31,7 @@ type WeightErrors = { [category: string]: string };
 type WorkData = {
   id?: string; // Include ID for updates
   userId: string;
-  content: Bullet[] | any;
+  content: Bullet[] | string;
   evaluationData?: {
     startDate: string;
     endDate: string;
@@ -41,9 +41,9 @@ type WorkData = {
   };
   bulletWeights?: BulletWeights;
   summaries?: CategorySummaries;
-  _tempEvaluationData?: any;
-  _tempBulletWeights?: any;
-  _tempSummaries?: any;
+  _tempEvaluationData?: string;
+  _tempBulletWeights?: string;
+  _tempSummaries?: string;
 };
 
 export default function OERPreview({ bullets = [], rankCategory = 'Officer', rank = 'O3' }: OERPreviewProps) {

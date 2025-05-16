@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input" // eslint-disable-line @typescript
 import { Textarea } from "@/components/ui/textarea" // eslint-disable-line @typescript-eslint/no-unused-vars
 import { Select } from "@/components/ui/select" // eslint-disable-line @typescript-eslint/no-unused-vars
 import { cn } from "@/lib/utils" // eslint-disable-line @typescript-eslint/no-unused-vars
-import { ChevronUp, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react"
+// Removed ChevronUp as it was unused
+import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react"
 
 interface Bullet {
   id: string;
@@ -74,9 +75,10 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     }
   }, [initialBullets]);
 
-  // Load persisted work only on initial mount and only if no initialBullets
+  // Load persisted work.
+  // This effect now includes initialBullets and onBulletsChanged in its dependency array.
   useEffect(() => {
-    // Only load from storage if no initialBullets provided
+    // Only load from storage if no initialBullets provided or if they are empty
     if (!initialBullets || initialBullets.length === 0) {
       getWork()
         .then((records: WorkRecord[]) => {
@@ -84,17 +86,23 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
             const saved = records[0].content as Bullet[];
             console.log("BulletEditor: Loaded bullets from storage:", saved);
             setBullets(saved);
-            onBulletsChanged?.(saved);
+            // Call onBulletsChanged if it's provided
+            if (onBulletsChanged) {
+              onBulletsChanged(saved);
+            }
           }
         })
         .catch((err) => console.error('Failed to load bullets:', err));
     }
-  }, []); // Empty dependency array means this only runs once on mount
+  }, [initialBullets, onBulletsChanged]); // Added initialBullets and onBulletsChanged to dependencies
 
   // Save bullets whenever they change
   const handleChange = (newBullets: Bullet[]) => {
     setBullets(newBullets);
-    onBulletsChanged?.(newBullets);
+    // Call onBulletsChanged if it's provided
+    if (onBulletsChanged) {
+      onBulletsChanged(newBullets);
+    }
     saveWork(newBullets).catch((err) => console.error('Failed to save bullets:', err));
   };
   
@@ -158,6 +166,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   // Handle adding a new bullet
   const handleAddBullet = () => {
     if (!newBullet.category || !newBullet.competency || !newBullet.content.trim()) {
+      // Consider using a more user-friendly notification than alert
       alert('Please fill out all fields');
       return;
     }
@@ -198,9 +207,8 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     if (index <= 0) return; // Already at top or not found
     
     const newBullets = [...bullets];
-    const temp = newBullets[index];
-    newBullets[index] = newBullets[index - 1];
-    newBullets[index - 1] = temp;
+    // Swap elements
+    [newBullets[index - 1], newBullets[index]] = [newBullets[index], newBullets[index - 1]];
     
     handleChange(newBullets);
   };
@@ -211,16 +219,16 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     if (index === -1 || index === bullets.length - 1) return; // Not found or already at bottom
     
     const newBullets = [...bullets];
-    const temp = newBullets[index];
-    newBullets[index] = newBullets[index + 1];
-    newBullets[index + 1] = temp;
+    // Swap elements
+    [newBullets[index + 1], newBullets[index]] = [newBullets[index], newBullets[index + 1]];
     
     handleChange(newBullets);
   };
 
   // Group bullets by category
   const grouped = bullets.reduce((acc, bullet) => {
-    const cat = bullet.category || getCategoryFromCompetency(bullet.competency);
+    // Ensure category exists, fallback if necessary
+    const cat = bullet.category || getCategoryFromCompetency(bullet.competency) || 'Other';
     acc[cat] = acc[cat] || [];
     acc[cat].push(bullet);
     return acc;
@@ -231,14 +239,14 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     'Performance of Duties',
     'Leadership Skills',
     'Personal and Professional Qualities',
-    'Military',
-    'Performance',
-    'Professional Qualities',
-    'Leadership',
-    'Other'
+    'Military', // Example, adjust as needed
+    'Performance', // Example, adjust as needed
+    'Professional Qualities', // Example, adjust as needed
+    'Leadership', // Example, adjust as needed
+    'Other' // Fallback category
   ];
   
-  // Log for debugging
+  // Log for debugging (can be removed in production)
   console.log("Categories before sorting:", Object.keys(grouped));
   console.log("Defined category order:", categoryOrder);
 
@@ -270,11 +278,11 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       'Health and Well Being': 'Personal and Professional Qualities',
     };
     
-    return competencyToCategory[competency] || 'Other';
+    return competencyToCategory[competency] || 'Other'; // Fallback to 'Other'
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-4"> {/* Added some padding for better spacing */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Performance Bullets</h2>
         <Button 
@@ -287,19 +295,19 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       
       {/* New Bullet Form */}
       {showNewBulletForm && (
-        <div className="mb-6 p-4 border border-ring rounded-md bg-card">
+        <div className="mb-6 p-4 border border-ring rounded-md bg-card shadow-md"> {/* Added shadow for depth */}
           <h3 className="text-lg font-semibold mb-3">Add New Bullet</h3>
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="category" className="block text-sm font-medium mb-1">
+              <label htmlFor="category" className="block text-sm font-medium mb-1 text-foreground"> {/* Ensured text color */}
                 Category:
               </label>
               <select
                 id="category"
                 value={newBullet.category}
                 onChange={handleCategoryChange}
-                className="w-full rounded-md border border-ring bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" /* Improved focus styling and consistency */
               >
                 <option value="">Select Category</option>
                 {categories.map(cat => (
@@ -309,14 +317,14 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
             </div>
             
             <div>
-              <label htmlFor="competency" className="block text-sm font-medium mb-1">
+              <label htmlFor="competency" className="block text-sm font-medium mb-1 text-foreground">
                 Competency:
               </label>
               <select
                 id="competency"
                 value={newBullet.competency}
                 onChange={(e) => setNewBullet({...newBullet, competency: e.target.value})}
-                className="w-full rounded-md border border-ring bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 disabled={!newBullet.category}
               >
                 <option value="">Select Competency</option>
@@ -327,7 +335,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
             </div>
             
             <div>
-              <label htmlFor="content" className="block text-sm font-medium mb-1">
+              <label htmlFor="content" className="block text-sm font-medium mb-1 text-foreground">
                 Bullet Content:
               </label>
               <textarea
@@ -336,7 +344,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                 onChange={(e) => setNewBullet({...newBullet, content: e.target.value})}
                 rows={4}
                 placeholder="Enter bullet content..."
-                className="w-full rounded-md border border-ring bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" /* Improved styling */
               />
             </div>
             
@@ -352,22 +360,25 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
         </div>
       )}
 
-      {/* Log sorted categories for verification */}
-      <div style={{ display: 'none' }}>
+      {/* Log sorted categories for verification (can be removed) */}
+      {/* This div is for debugging and can be removed or commented out in production */}
+      {/* <div style={{ display: 'none' }}>
         {Object.entries(grouped)
           .sort(([catA], [catB]) => {
             const indexA = categoryOrder.indexOf(catA);
             const indexB = categoryOrder.indexOf(catB);
-            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+            return (indexA === -1 ? categoryOrder.length : indexA) - (indexB === -1 ? categoryOrder.length : indexB);
           })
           .map(([category], index) => {
-            console.log(`${index + 1}. ${category}`);
+            console.log(`Sorted Category ${index + 1}: ${category}`);
             return null;
           })
         }
-      </div>
+      </div> 
+      */}
+
       {Object.keys(grouped).length === 0 ? (
-        <div className="text-center p-6 bg-background border border-ring rounded-md">
+        <div className="text-center p-6 bg-background border border-input rounded-md shadow"> {/* Added shadow */}
           <p className="text-muted-foreground">
             No bullets yet. Use the chat interface to generate bullets or add them manually.
           </p>
@@ -379,32 +390,35 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
             const indexA = categoryOrder.indexOf(catA);
             const indexB = categoryOrder.indexOf(catB);
             // If category isn't in the list, put it at the end
-            console.log(`Sorting: ${catA} (index: ${indexA}) vs ${catB} (index: ${indexB})`);
-            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+            // console.log(`Sorting: ${catA} (index: ${indexA}) vs ${catB} (index: ${indexB})`); // Debug log
+            return (indexA === -1 ? categoryOrder.length : indexA) - (indexB === -1 ? categoryOrder.length : indexB);
           })
           .map(([category, bulletsList]) => (
-          <div key={category} className="mb-6 border border-ring rounded-md overflow-hidden">
+          <div key={category} className="mb-6 border border-input rounded-md overflow-hidden shadow-md"> {/* Added shadow */}
             {/* Category Header with Collapse Toggle */}
             <div 
-              className="flex justify-between items-center p-3 bg-muted cursor-pointer"
+              className="flex justify-between items-center p-3 bg-muted cursor-pointer hover:bg-muted/80 transition-colors" /* Added hover effect */
               onClick={() => toggleCategoryCollapse(category)}
+              role="button" // Added role for accessibility
+              tabIndex={0} // Added tabIndex for accessibility
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleCategoryCollapse(category); }} // Keyboard accessibility
             >
-              <h3 className="text-lg font-semibold flex items-center">
+              <h3 className="text-lg font-semibold flex items-center text-foreground"> {/* Ensured text color */}
                 {collapsedCategories[category] ? 
-                  <ChevronRight className="h-5 w-5 mr-1" /> : 
-                  <ChevronDown className="h-5 w-5 mr-1" />}
+                  <ChevronRight className="h-5 w-5 mr-2" /> :  /* Added margin */
+                  <ChevronDown className="h-5 w-5 mr-2" />} /* Added margin */
                 {category} <span className="ml-2 text-sm text-muted-foreground">({bulletsList.length} bullets)</span>
               </h3>
             </div>
             
             {/* Bullets List - Collapsible */}
             {!collapsedCategories[category] && (
-              <div className="space-y-3 p-3">
+              <div className="space-y-3 p-3 bg-background"> {/* Ensured background color */}
                 {bulletsList.map((bullet, index) => (
                   <div
                     key={bullet.id}
-                    className={`p-3 border rounded-md relative ${
-                      bullet.isApplied ? 'bg-ring/25 border-ring' : 'bg-background border-ring'
+                    className={`p-3 border rounded-md relative shadow-sm ${ /* Added shadow-sm */
+                      bullet.isApplied ? 'bg-green-100 dark:bg-green-900/30 border-green-500 dark:border-green-700' : 'bg-card border-input' /* Improved applied style for dark/light mode */
                     }`}
                   >
                     <div className="text-sm text-muted-foreground mb-1">{bullet.competency}</div>
@@ -415,15 +429,13 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                           ref={editInputRef}
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
-                          className="w-full rounded-md border border-ring bg-background px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                           rows={4}
                           onKeyDown={(e) => {
-                            // Save on Ctrl+Enter
                             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                               e.preventDefault();
                               saveEditing();
                             }
-                            // Cancel on Escape
                             if (e.key === 'Escape') {
                               e.preventDefault();
                               cancelEditing();
@@ -431,66 +443,73 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                           }}
                         />
                         <div className="flex justify-end mt-2 space-x-2">
-                          <button
+                          <Button
+                            variant="outline"
+                            size="sm" // Consistent button sizing
                             onClick={cancelEditing}
-                            className="px-3 py-1 border border-ring rounded-md text-muted-foreground text-sm"
                           >
                             Cancel
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            size="sm" // Consistent button sizing
                             onClick={saveEditing}
-                            className="px-3 py-1 bg-primary text-primary-foreground rounded-md text-sm"
                           >
                             Save
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="mb-4 pr-16">{bullet.content}</div>
+                      <div className="mb-4 pr-16 text-foreground break-words">{bullet.content}</div> /* Ensured text color and word break */
                     )}
                     
                     {/* Bullet Actions - Only show when not editing */}
                     {editingBullet !== bullet.id && (
-                      <div className="flex justify-between">
+                      <div className="flex flex-wrap gap-2 justify-between items-center"> {/* Added flex-wrap and gap */}
                         <div>
-                          <button
+                          <Button
+                            size="sm"
                             onClick={() => handleToggleApply(bullet.id)}
-                            className={`px-3 py-1 rounded-md mr-2 ${
+                            variant={bullet.isApplied ? "default" : "outline"}
+                            className={`${
                               bullet.isApplied
-                                ? 'bg-green-600 text-white'
-                                : 'border border-green-600 text-green-600'
+                                ? 'bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800' 
+                                : 'border-green-600 text-green-600 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/50'
                             }`}
                           >
                             {bullet.isApplied ? 'Applied' : 'Apply to Eval'}
-                          </button>
+                          </Button>
                         </div>
                         
-                        <div>
-                          <button
+                        <div className="flex gap-2"> {/* Grouped edit/delete buttons */}
+                          <Button
+                            variant="ghost" // Subtler button style
+                            size="sm"
                             onClick={() => startEditing(bullet.id, bullet.content)}
-                            className="px-3 py-1 text-blue-600 mr-2"
+                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500"
                           >
                             Edit
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost" // Subtler button style
+                            size="sm"
                             onClick={() => handleDelete(bullet.id)}
-                            className="px-3 py-1 text-red-600"
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500"
                           >
                             Delete
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )}
                     
                     {/* Reordering buttons - only show when not editing */}
                     {editingBullet !== bullet.id && (
-                      <div className="absolute right-2 top-2">
+                      <div className="absolute right-2 top-2 flex flex-col space-y-1"> {/* Adjusted layout for reorder buttons */}
                         <button 
                           onClick={(e) => {
-                            e.stopPropagation();
+                            e.stopPropagation(); // Prevent category collapse toggle
                             moveBulletUp(bullet.id);
                           }}
-                          className="p-1 text-muted-foreground hover:text-foreground"
+                          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50" /* Improved styling */
                           disabled={index === 0}
                           title="Move up"
                         >
@@ -498,10 +517,10 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                         </button>
                         <button 
                           onClick={(e) => {
-                            e.stopPropagation();
+                            e.stopPropagation(); // Prevent category collapse toggle
                             moveBulletDown(bullet.id);
                           }}
-                          className="p-1 text-muted-foreground hover:text-foreground"
+                          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50" /* Improved styling */
                           disabled={index === bulletsList.length - 1}
                           title="Move down"
                         >
