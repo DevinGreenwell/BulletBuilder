@@ -1,14 +1,11 @@
 'use client';
 
-// Added useMemo to the import statement
-import React, { useState, useEffect, useRef, useMemo } from 'react'; 
+// useMemo was added previously.
+// Input, Textarea, Select, cn were removed as they were unused.
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'; 
 import { getWork, saveWork, WorkRecord } from '@/lib/work';
 import { Button } from '@/components/ui/button';
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea"; 
-import { Select } from "@/components/ui/select"; 
-import { cn } from "@/lib/utils"; 
-// Removed unused ChevronUp, kept others
+// Removed unused lucide icon ChevronUp
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 
 interface Bullet {
@@ -20,6 +17,17 @@ interface Bullet {
   createdAt: number;
   source?: string;
 }
+
+// Type guard for structured content that might contain bullets
+interface StructuredContentWithBullets {
+  bullets: Bullet[];
+  // other properties might exist but are not relevant for this check
+}
+
+function isStructuredContentWithBullets(content: any): content is StructuredContentWithBullets {
+  return typeof content === 'object' && content !== null && 'bullets' in content && Array.isArray(content.bullets);
+}
+
 
 interface BulletEditorProps {
   initialBullets?: Bullet[];
@@ -42,6 +50,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   
+  // competencyOptions is stable as it's defined as a const object literal within the component.
   const competencyOptions: Record<string, string[]> = {
     'Performance of Duties': [
       'Planning & Preparedness', 'Using Resources', 'Results/Effectiveness',
@@ -59,61 +68,57 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   
   const categories = Object.keys(competencyOptions);
 
+  // Effect to update local bullets if the initialBullets prop changes.
+  // Added 'bullets' to dependency array as it's used in the condition.
   useEffect(() => {
-    // Update local bullets if the initialBullets prop changes and is different
     if (initialBullets && JSON.stringify(initialBullets) !== JSON.stringify(bullets)) {
       console.log("BulletEditor: initialBullets prop changed, updating local state:", initialBullets);
       setBullets(initialBullets);
     }
-  }, [initialBullets]); // Removed 'bullets' from dependency to prevent potential loops if prop is stable
+  }, [initialBullets, bullets]); 
 
-  // Load persisted work only on initial mount if no initialBullets are provided
+  // Load persisted work only on initial mount if no initialBullets are provided.
   useEffect(() => {
     if ((!initialBullets || initialBullets.length === 0) && typeof window !== 'undefined') {
       getWork()
         .then((records: WorkRecord[]) => {
           if (records.length > 0 && records[0].content) {
-            // Content could be StructuredContent or Bullet[]
             const savedContent = records[0].content;
             let loadedBullets: Bullet[] = [];
 
-            // Check if content is an object with a 'bullets' property (new format)
-            if (typeof savedContent === 'object' && savedContent !== null && 'bullets' in savedContent && Array.isArray((savedContent as any).bullets)) {
-                loadedBullets = (savedContent as any).bullets as Bullet[];
-            } else if (Array.isArray(savedContent)) { // Old format: content is directly Bullet[]
-                loadedBullets = savedContent as Bullet[];
+            // Use type guard to safely access bullets property
+            if (isStructuredContentWithBullets(savedContent)) {
+                loadedBullets = savedContent.bullets;
+            } else if (Array.isArray(savedContent)) { 
+                loadedBullets = savedContent as Bullet[]; // Cast if it's directly an array
             }
             
             if (loadedBullets.length > 0) {
                 console.log("BulletEditor: Loaded bullets from storage:", loadedBullets);
                 setBullets(loadedBullets);
-                onBulletsChanged?.(loadedBullets); // Notify parent about loaded bullets
+                onBulletsChanged?.(loadedBullets); 
             }
           }
         })
         .catch((err) => console.error('Failed to load bullets from storage:', err));
     }
+  // onBulletsChanged is a function, if it can change, it should be in deps.
+  // Assuming it's stable or memoized in the parent.
   // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, []); // Intentionally empty: run once on mount if no initial bullets
+  }, [initialBullets, onBulletsChanged]); // Added onBulletsChanged as it's called. initialBullets ensures re-check if it becomes empty.
 
   // Debounced save for bullets
   useEffect(() => {
-    // Avoid saving if bullets haven't changed from initial or if onBulletsChanged isn't provided
     if (JSON.stringify(bullets) === JSON.stringify(initialBullets) && initialBullets.length > 0) {
-        // If bullets match initial and initialBullets is not empty, don't save.
-        // This prevents saving an empty array if initialBullets was empty and then populated.
         return;
     }
 
     const handler = setTimeout(() => {
       console.log("BulletEditor: Saving bullets due to change (debounced):", bullets);
-      // Assuming saveWork expects the full content structure or just bullets.
-      // If your OERPreview saves a structured object, BulletEditor should likely do the same
-      // or have its saveWork adapted. For now, saving bullets directly.
-      saveWork({ content: bullets }) // Adjust if saveWork expects a more complex structure
+      saveWork({ content: bullets }) 
         .catch((err) => console.error('Failed to save bullets (debounced):', err));
-      onBulletsChanged?.(bullets); // Notify parent of changes
-    }, 1000); // 1-second debounce
+      onBulletsChanged?.(bullets); 
+    }, 1000); 
 
     return () => {
       clearTimeout(handler);
@@ -123,7 +128,6 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
 
   const handleChange = (newBullets: Bullet[]) => {
     setBullets(newBullets);
-    // Actual saving and parent notification is handled by the debounced useEffect above
   };
   
   const startEditing = (bulletId: string, currentContent: string) => {
@@ -131,7 +135,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     setEditText(currentContent);
     setTimeout(() => {
       editInputRef.current?.focus();
-    }, 10); // Delay to ensure textarea is rendered
+    }, 10); 
   };
   
   const cancelEditing = () => {
@@ -219,31 +223,34 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     handleChange(newBullets);
   };
   
-  function getCategoryFromCompetency(competency: string): string {
+  // Wrapped getCategoryFromCompetency in useCallback as it's a dependency of useMemo
+  // and depends on competencyOptions (which is stable in this component's lifecycle).
+  const getCategoryFromCompetency = useCallback((competency: string): string => {
     for (const [category, competencies] of Object.entries(competencyOptions)) {
       if (competencies.includes(competency)) {
         return category;
       }
     }
     return 'Other'; 
-  }
+  }, [competencyOptions]); // competencyOptions is stable
 
+  // Group bullets by category. Added getCategoryFromCompetency to dependencies.
   const groupedBullets = useMemo(() => {
     return bullets.reduce((acc, bullet) => {
       const category = bullet.category || getCategoryFromCompetency(bullet.competency);
       (acc[category] = acc[category] || []).push(bullet);
       return acc;
     }, {} as Record<string, Bullet[]>);
-  }, [bullets]); 
+  }, [bullets, getCategoryFromCompetency]); 
   
-  const categoryOrder = [
-    'Performance of Duties',
-    'Leadership Skills',
-    'Personal and Professional Qualities',
-    // 'Other' will be appended if not explicitly listed
-  ];
-  
+  // Get sorted category keys for rendering.
+  // Moved categoryOrder inside useMemo to prevent it from changing on every render.
   const sortedCategoryKeys = useMemo(() => {
+    const categoryOrder = [ // Defined inside useMemo
+      'Performance of Duties',
+      'Leadership Skills',
+      'Personal and Professional Qualities',
+    ];
     const keys = Object.keys(groupedBullets);
     return keys.sort((a, b) => {
       const indexA = categoryOrder.indexOf(a);
@@ -253,11 +260,11 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       if (indexB === -1) return -1;
       return indexA - indexB;
     });
-  }, [groupedBullets, categoryOrder]);
+  }, [groupedBullets]); // categoryOrder is now stable within this useMemo
 
 
   return (
-    <div className="max-w-4xl mx-auto p-4"> {/* Added padding for overall spacing */}
+    <div className="max-w-4xl mx-auto p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Performance Bullets</h2>
         <Button 
@@ -331,7 +338,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
         </div>
       )}
 
-      {bullets.length === 0 && !showNewBulletForm ? ( // Also check showNewBulletForm to avoid showing this while form is open
+      {bullets.length === 0 && !showNewBulletForm ? ( 
         <div className="text-center p-6 bg-card border border-border rounded-md shadow">
           <p className="text-muted-foreground">
             No bullets yet. Use the chat interface to generate bullets or add them manually above.
@@ -451,7 +458,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                         <div className="absolute right-2 top-2 flex flex-col space-y-1">
                           <button 
                             onClick={(e) => {
-                              e.stopPropagation(); // Prevent category collapse if inside clickable header
+                              e.stopPropagation(); 
                               moveBulletUp(bullet.id);
                             }}
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50"
@@ -462,7 +469,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                           </button>
                           <button 
                             onClick={(e) => {
-                              e.stopPropagation(); // Prevent category collapse
+                              e.stopPropagation(); 
                               moveBulletDown(bullet.id);
                             }}
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50"

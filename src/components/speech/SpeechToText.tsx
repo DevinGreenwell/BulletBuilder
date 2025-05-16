@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import SpeechFeedback from './SpeechFeedback';
 
 // ───────────────────────── TYPE DEFINITIONS FOR WEB SPEECH API ─────────────────────────
-// These event/result types are generally safe as they describe the structure of event objects.
 interface SpeechRecognitionEvent extends Event {
   readonly resultIndex: number;
   readonly results: SpeechRecognitionResultList;
@@ -46,8 +45,9 @@ type SpeechRecognitionErrorCode =
   | 'language-not-supported';
 
 // Custom interface for the SpeechRecognition instance
+// Properties are based on the standard Web Speech API
 interface CustomSpeechRecognitionInstance extends EventTarget {
-  grammars: any; // SpeechGrammarList; can be any if not deeply used
+  grammars: any; // Type as SpeechGrammarList if you use it, else 'any' is fine for now
   lang: string;
   continuous: boolean;
   interimResults: boolean;
@@ -58,17 +58,17 @@ interface CustomSpeechRecognitionInstance extends EventTarget {
   stop(): void;
   abort(): void;
 
-  onaudiostart: ((this: CustomSpeechRecognitionInstance, ev: Event) => any) | null;
-  onaudioend: ((this: CustomSpeechRecognitionInstance, ev: Event) => any) | null;
-  onend: ((this: CustomSpeechRecognitionInstance, ev: Event) => any) | null;
-  onerror: ((this: CustomSpeechRecognitionInstance, ev: SpeechRecognitionErrorEvent) => any) | null;
-  onnomatch: ((this: CustomSpeechRecognitionInstance, ev: SpeechRecognitionEvent) => any) | null;
-  onresult: ((this: CustomSpeechRecognitionInstance, ev: SpeechRecognitionEvent) => any) | null;
-  onsoundstart: ((this: CustomSpeechRecognitionInstance, ev: Event) => any) | null;
-  onsoundend: ((this: CustomSpeechRecognitionInstance, ev: Event) => any) | null;
-  onspeechstart: ((this: CustomSpeechRecognitionInstance, ev: Event) => any) | null;
-  onspeechend: ((this: CustomSpeechRecognitionInstance, ev: Event) => any) | null;
-  onstart: ((this: CustomSpeechRecognitionInstance, ev: Event) => any) | null;
+  onaudiostart: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
+  onaudioend: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
+  onend: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
+  onerror: ((this: CustomSpeechRecognitionInstance, ev: SpeechRecognitionErrorEvent) => void) | null;
+  onnomatch: ((this: CustomSpeechRecognitionInstance, ev: SpeechRecognitionEvent) => void) | null;
+  onresult: ((this: CustomSpeechRecognitionInstance, ev: SpeechRecognitionEvent) => void) | null;
+  onsoundstart: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
+  onsoundend: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
+  onspeechstart: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
+  onspeechend: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
+  onstart: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
 }
 
 // Custom interface for the constructor of SpeechRecognition
@@ -79,10 +79,11 @@ interface CustomSpeechRecognitionConstructor {
 // Extend the global Window interface ONLY for custom properties
 declare global {
   interface Window {
-    // Do NOT re-declare SpeechRecognition or webkitSpeechRecognition here
-    // if they are provided by TypeScript's lib.dom.d.ts.
-    // We will rely on the global types and cast at the point of use.
-    currentRecognition?: CustomSpeechRecognitionInstance; // Our custom property, typed specifically
+    // These are standard browser APIs. Rely on TypeScript's lib.dom.d.ts for their base types.
+    // We will cast to our more specific custom types at the point of use if necessary.
+    SpeechRecognition?: { new(): any }; // Generic constructor signature for existence check
+    webkitSpeechRecognition?: { new(): any }; // Generic constructor signature for existence check
+    currentRecognition?: CustomSpeechRecognitionInstance; // Our custom property
   }
 }
 // ───────────────────────── END OF TYPE DEFINITIONS ─────────────────────────
@@ -107,9 +108,8 @@ export default function SpeechToText({
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   useEffect(() => {
-    // Check for SpeechRecognition API existence
     const browserSupportsSpeech = typeof window !== 'undefined' && 
-                                  ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+                                  (window.SpeechRecognition || window.webkitSpeechRecognition);
     if (!browserSupportsSpeech) {
       setIsSpeechSupported(false);
       setError('Speech recognition is not supported in this browser.');
@@ -120,27 +120,24 @@ export default function SpeechToText({
   const startListening = useCallback(() => {
     if (!isSpeechSupported) {
       setError('Speech recognition is not supported.');
-      console.warn('Attempted to start listening but speech is not supported.');
       return;
     }
 
     setError(null);
-    setIsListening(true);
+    // Set isListening true here, so the dependency is up-to-date for the onend closure
+    setIsListening(true); 
     setTranscript(''); 
     if (showFeedback) {
       setShowFeedbackModal(true);
     }
 
-    // Access the API from window and cast to our custom constructor type.
-    // This assumes that if SpeechRecognition exists, it's compatible with our CustomSpeechRecognitionConstructor.
     const SpeechRecognitionAPIConstructor = 
-        ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) as CustomSpeechRecognitionConstructor | undefined;
+        (window.SpeechRecognition || window.webkitSpeechRecognition) as CustomSpeechRecognitionConstructor | undefined;
     
     if (!SpeechRecognitionAPIConstructor) {
       setError('Speech recognition API could not be initialized.');
-      setIsListening(false);
+      setIsListening(false); // Reset if constructor not found
       setShowFeedbackModal(false);
-      console.error('SpeechRecognitionAPIConstructor is undefined after check.');
       return;
     }
     
@@ -152,13 +149,12 @@ export default function SpeechToText({
 
       recognition.onstart = () => {
         console.log('Speech recognition started.');
-        setIsListening(true); 
+        // isListening is already set true before calling recognition.start()
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         let interimTranscriptAccumulator = '';
         let finalTranscriptAccumulator = '';
-
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const currentSegment = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
@@ -182,6 +178,8 @@ export default function SpeechToText({
 
       recognition.onend = () => {
         console.log('Speech recognition ended.');
+        // The 'isListening' in this closure will be from the render `startListening` was created.
+        // This is why `isListening` is added as a dependency to `startListening`'s `useCallback`.
         if (window.currentRecognition === recognition) { 
             setIsListening(false); 
             setShowFeedbackModal(false);
@@ -193,6 +191,8 @@ export default function SpeechToText({
             });
             window.currentRecognition = undefined; 
         } else if (!isListening && window.currentRecognition === undefined) {
+            // This condition checks the `isListening` from the closure.
+            // If `startListening`'s `useCallback` has `isListening` as a dep, this will be up-to-date.
             setShowFeedbackModal(false);
         }
       };
@@ -207,16 +207,21 @@ export default function SpeechToText({
       setIsListening(false);
       setShowFeedbackModal(false);
     }
-  }, [isSpeechSupported, onTranscript, showFeedback]);
+  // Added isListening to dependencies because the onend handler closes over it.
+  // onTranscript and showFeedback are props/stable values.
+  }, [isSpeechSupported, onTranscript, showFeedback, isListening]);
 
   const stopListening = useCallback(() => {
     if (window.currentRecognition) {
       console.log('Manually stopping speech recognition.');
-      setIsListening(false); 
+      // isListening will be set to false by the onend handler if it's the current recognition
       window.currentRecognition.stop(); 
+    } else {
+      // If no currentRecognition, ensure UI is updated
+      setIsListening(false);
     }
     setShowFeedbackModal(false); 
-  }, []);
+  }, []); // No direct dependencies that change frequently
 
   useEffect(() => {
     return () => {
