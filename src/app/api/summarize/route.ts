@@ -78,9 +78,6 @@ export async function POST(request: NextRequest) {
         // 5. Handle any errors during the process
         console.error('[api/summarize] Error during category summarization processing:', error);
 
-        // Determine a user-friendly error message
-        const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary due to an unknown server error.';
-
         // Return a generic error response to the client
         return NextResponse.json<ErrorResponse>(
             // Avoid leaking detailed internal errors to the client if possible

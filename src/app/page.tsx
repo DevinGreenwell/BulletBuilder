@@ -6,7 +6,6 @@ import ChatInterface from '@/components/chat/ChatInterface';
 import BulletEditor from '@/components/bullets/BulletEditor';
 import OERPreview from '@/components/oer/OERPreview';
 import RankSelector from '@/components/ui/RankSelector';
-import SpeechHint from '@/components/speech/SpeechHint'; // Assuming you have this component
 import { Card } from '@/components/ui/card'; // Assuming Card is from shadcn
 import BuyMeCoffeeButton from '@/components/ui/BuyMeCoffeeButton';
 
