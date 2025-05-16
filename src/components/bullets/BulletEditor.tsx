@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+// Added useMemo to the import statement
+import React, { useState, useEffect, useRef, useMemo } from 'react'; 
 import { getWork, saveWork, WorkRecord } from '@/lib/work';
 import { Button } from '@/components/ui/button';
-import { Input } from "@/components/ui/input"; // eslint-disable-line @typescript-eslint/no-unused-vars
-import { Textarea } from "@/components/ui/textarea"; // eslint-disable-line @typescript-eslint/no-unused-vars
-import { Select } from "@/components/ui/select"; // eslint-disable-line @typescript-eslint/no-unused-vars
-import { cn } from "@/lib/utils"; // eslint-disable-line @typescript-eslint/no-unused-vars
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea"; 
+import { Select } from "@/components/ui/select"; 
+import { cn } from "@/lib/utils"; 
+// Removed unused ChevronUp, kept others
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 
 interface Bullet {
@@ -27,10 +29,7 @@ interface BulletEditorProps {
 export default function BulletEditor({ initialBullets = [], onBulletsChanged }: BulletEditorProps) {
   console.log("BulletEditor: received initialBullets:", initialBullets);
   
-  // Persisted bullets state
   const [bullets, setBullets] = useState<Bullet[]>(initialBullets);
-  
-  // State for new bullet form
   const [showNewBulletForm, setShowNewBulletForm] = useState(false);
   const [newBullet, setNewBullet] = useState({
     competency: '',
@@ -38,15 +37,11 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     category: ''
   });
   
-  // State for inline editing
   const [editingBullet, setEditingBullet] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const editInputRef = useRef<HTMLTextAreaElement>(null);
-  
-  // State for collapsed categories
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   
-  // Competency options by category
   const competencyOptions: Record<string, string[]> = {
     'Performance of Duties': [
       'Planning & Preparedness', 'Using Resources', 'Results/Effectiveness',
@@ -60,60 +55,65 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       'Initiative', 'Judgment', 'Responsibility',
       'Professional Presence', 'Health and Well Being'
     ],
-    // Add enlisted categories and competencies as needed
   };
   
-  // Available categories
   const categories = Object.keys(competencyOptions);
 
-  // Update bullets when initialBullets prop changes
   useEffect(() => {
-    console.log("BulletEditor: initialBullets prop changed:", initialBullets);
-    // Only update from props if initialBullets is actually provided and different
-    // This helps prevent overwriting local changes if prop reference changes unnecessarily
+    // Update local bullets if the initialBullets prop changes and is different
     if (initialBullets && JSON.stringify(initialBullets) !== JSON.stringify(bullets)) {
+      console.log("BulletEditor: initialBullets prop changed, updating local state:", initialBullets);
       setBullets(initialBullets);
     }
-  }, [initialBullets]); // Removed 'bullets' from dependency to avoid loop if prop is stable
+  }, [initialBullets]); // Removed 'bullets' from dependency to prevent potential loops if prop is stable
 
-  // Load persisted work only on initial mount if no initialBullets provided
+  // Load persisted work only on initial mount if no initialBullets are provided
   useEffect(() => {
     if ((!initialBullets || initialBullets.length === 0) && typeof window !== 'undefined') {
       getWork()
         .then((records: WorkRecord[]) => {
           if (records.length > 0 && records[0].content) {
-            // Assuming content could be StructuredContent or Bullet[]
+            // Content could be StructuredContent or Bullet[]
             const savedContent = records[0].content;
             let loadedBullets: Bullet[] = [];
 
-            if (typeof savedContent === 'object' && 'bullets' in savedContent && Array.isArray((savedContent as any).bullets)) {
+            // Check if content is an object with a 'bullets' property (new format)
+            if (typeof savedContent === 'object' && savedContent !== null && 'bullets' in savedContent && Array.isArray((savedContent as any).bullets)) {
                 loadedBullets = (savedContent as any).bullets as Bullet[];
-            } else if (Array.isArray(savedContent)) {
+            } else if (Array.isArray(savedContent)) { // Old format: content is directly Bullet[]
                 loadedBullets = savedContent as Bullet[];
             }
             
             if (loadedBullets.length > 0) {
                 console.log("BulletEditor: Loaded bullets from storage:", loadedBullets);
                 setBullets(loadedBullets);
-                onBulletsChanged?.(loadedBullets);
+                onBulletsChanged?.(loadedBullets); // Notify parent about loaded bullets
             }
           }
         })
-        .catch((err) => console.error('Failed to load bullets:', err));
+        .catch((err) => console.error('Failed to load bullets from storage:', err));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
   }, []); // Intentionally empty: run once on mount if no initial bullets
 
-  // Debounced save bullets whenever they change
+  // Debounced save for bullets
   useEffect(() => {
+    // Avoid saving if bullets haven't changed from initial or if onBulletsChanged isn't provided
+    if (JSON.stringify(bullets) === JSON.stringify(initialBullets) && initialBullets.length > 0) {
+        // If bullets match initial and initialBullets is not empty, don't save.
+        // This prevents saving an empty array if initialBullets was empty and then populated.
+        return;
+    }
+
     const handler = setTimeout(() => {
-      if (bullets !== initialBullets) { // Only save if there's a change from initial or last saved
-        console.log("BulletEditor: Saving bullets due to change:", bullets);
-        saveWork({ content: bullets }) // Assuming saveWork expects an object with a content key
-          .catch((err) => console.error('Failed to save bullets:', err));
-        onBulletsChanged?.(bullets);
-      }
-    }, 1000); // Debounce time: 1 second
+      console.log("BulletEditor: Saving bullets due to change (debounced):", bullets);
+      // Assuming saveWork expects the full content structure or just bullets.
+      // If your OERPreview saves a structured object, BulletEditor should likely do the same
+      // or have its saveWork adapted. For now, saving bullets directly.
+      saveWork({ content: bullets }) // Adjust if saveWork expects a more complex structure
+        .catch((err) => console.error('Failed to save bullets (debounced):', err));
+      onBulletsChanged?.(bullets); // Notify parent of changes
+    }, 1000); // 1-second debounce
 
     return () => {
       clearTimeout(handler);
@@ -121,37 +121,32 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   }, [bullets, initialBullets, onBulletsChanged]);
 
 
-  // Handler for local bullet changes that then triggers debounced save
   const handleChange = (newBullets: Bullet[]) => {
     setBullets(newBullets);
-    // onBulletsChanged and saveWork are called by the useEffect hook watching 'bullets'
+    // Actual saving and parent notification is handled by the debounced useEffect above
   };
   
-  // Start editing a bullet
   const startEditing = (bulletId: string, currentContent: string) => {
     setEditingBullet(bulletId);
     setEditText(currentContent);
     setTimeout(() => {
       editInputRef.current?.focus();
-    }, 10);
+    }, 10); // Delay to ensure textarea is rendered
   };
   
-  // Cancel editing
   const cancelEditing = () => {
     setEditingBullet(null);
     setEditText('');
   };
   
-  // Save edited bullet
   const saveEditing = () => {
     if (editingBullet && editText.trim()) {
       handleEditSave(editingBullet, editText);
     }
-    setEditingBullet(null); // Always exit editing mode
+    setEditingBullet(null); 
     setEditText('');
   };
 
-  // Handlers for edit, delete, toggle
   const handleEditSave = (id: string, newContent: string) => {
     handleChange(bullets.map((b) => (b.id === id ? { ...b, content: newContent } : b)));
   };
@@ -166,10 +161,8 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     );
   };
   
-  // Function to generate a new bullet ID
   const generateBulletId = () => `bullet_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   
-  // Handle category selection in new bullet form
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const category = e.target.value;
     setNewBullet({
@@ -179,10 +172,9 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     });
   };
   
-  // Handle adding a new bullet
   const handleAddBullet = () => {
     if (!newBullet.category || !newBullet.competency || !newBullet.content.trim()) {
-      alert('Please fill out all fields for the new bullet.'); // User-friendly alert
+      alert('Please fill out all fields for the new bullet.');
       return;
     }
     
@@ -190,20 +182,18 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       id: generateBulletId(),
       competency: newBullet.competency,
       content: newBullet.content.trim(),
-      isApplied: false, // Default to not applied
+      isApplied: false, 
       category: newBullet.category,
       createdAt: Date.now(),
-      source: 'manual' // Indicate it was manually added
+      source: 'manual' 
     };
     
     handleChange([...bullets, bulletToAdd]);
     
-    // Reset form and hide
     setNewBullet({ competency: '', content: '', category: '' });
     setShowNewBulletForm(false);
   };
 
-  // Toggle category collapse state
   const toggleCategoryCollapse = (category: string) => {
     setCollapsedCategories(prev => ({
       ...prev,
@@ -211,69 +201,63 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     }));
   };
 
-  // Move bullet up in the list
   const moveBulletUp = (bulletId: string) => {
     const index = bullets.findIndex(b => b.id === bulletId);
     if (index <= 0) return;
     
     const newBullets = [...bullets];
-    [newBullets[index - 1], newBullets[index]] = [newBullets[index], newBullets[index - 1]]; // Swap
+    [newBullets[index - 1], newBullets[index]] = [newBullets[index], newBullets[index - 1]];
     handleChange(newBullets);
   };
 
-  // Move bullet down in the list
   const moveBulletDown = (bulletId: string) => {
     const index = bullets.findIndex(b => b.id === bulletId);
     if (index === -1 || index >= bullets.length - 1) return;
     
     const newBullets = [...bullets];
-    [newBullets[index + 1], newBullets[index]] = [newBullets[index], newBullets[index + 1]]; // Swap
+    [newBullets[index + 1], newBullets[index]] = [newBullets[index], newBullets[index + 1]];
     handleChange(newBullets);
   };
   
-  // Helper to get category from competency (if bullet.category is missing)
   function getCategoryFromCompetency(competency: string): string {
     for (const [category, competencies] of Object.entries(competencyOptions)) {
       if (competencies.includes(competency)) {
         return category;
       }
     }
-    return 'Other'; // Fallback category
+    return 'Other'; 
   }
 
-  // Group bullets by category
   const groupedBullets = useMemo(() => {
     return bullets.reduce((acc, bullet) => {
       const category = bullet.category || getCategoryFromCompetency(bullet.competency);
       (acc[category] = acc[category] || []).push(bullet);
       return acc;
     }, {} as Record<string, Bullet[]>);
-  }, [bullets]); // Re-group only when bullets array changes
+  }, [bullets]); 
   
-  // Define the correct category order for display
   const categoryOrder = [
     'Performance of Duties',
     'Leadership Skills',
     'Personal and Professional Qualities',
-    // Add other categories in desired order, 'Other' will be appended if not listed
+    // 'Other' will be appended if not explicitly listed
   ];
   
-  // Get sorted category keys for rendering
   const sortedCategoryKeys = useMemo(() => {
     const keys = Object.keys(groupedBullets);
     return keys.sort((a, b) => {
       const indexA = categoryOrder.indexOf(a);
       const indexB = categoryOrder.indexOf(b);
-      if (indexA === -1 && indexB === -1) return a.localeCompare(b); // Sort alphabetically if both not in order
-      if (indexA === -1) return 1; // Put 'a' at the end
-      if (indexB === -1) return -1; // Put 'b' at the end
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b); 
+      if (indexA === -1) return 1; 
+      if (indexB === -1) return -1;
       return indexA - indexB;
     });
   }, [groupedBullets, categoryOrder]);
 
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
+    <div className="max-w-4xl mx-auto p-4"> {/* Added padding for overall spacing */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Performance Bullets</h2>
         <Button 
@@ -284,11 +268,9 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
         </Button>
       </div>
       
-      {/* New Bullet Form */}
       {showNewBulletForm && (
         <div className="mb-6 p-4 border border-border rounded-md bg-card shadow-md">
           <h3 className="text-lg font-semibold mb-3 text-card-foreground">Add New Bullet</h3>
-          
           <div className="space-y-4">
             <div>
               <label htmlFor="new-bullet-category" className="block text-sm font-medium mb-1 text-foreground">
@@ -306,7 +288,6 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                 ))}
               </select>
             </div>
-            
             <div>
               <label htmlFor="new-bullet-competency" className="block text-sm font-medium mb-1 text-foreground">
                 Competency:
@@ -324,7 +305,6 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                 ))}
               </select>
             </div>
-            
             <div>
               <label htmlFor="new-bullet-content" className="block text-sm font-medium mb-1 text-foreground">
                 Bullet Content:
@@ -338,7 +318,6 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               />
             </div>
-            
             <div className="flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setShowNewBulletForm(false)}>Cancel</Button>
               <Button 
@@ -352,8 +331,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
         </div>
       )}
 
-      {/* Display Bullets by Category */}
-      {bullets.length === 0 ? (
+      {bullets.length === 0 && !showNewBulletForm ? ( // Also check showNewBulletForm to avoid showing this while form is open
         <div className="text-center p-6 bg-card border border-border rounded-md shadow">
           <p className="text-muted-foreground">
             No bullets yet. Use the chat interface to generate bullets or add them manually above.
@@ -362,7 +340,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       ) : (
         sortedCategoryKeys.map(category => {
           const bulletsList = groupedBullets[category];
-          if (!bulletsList || bulletsList.length === 0) return null; // Should not happen if keys are from groupedBullets
+          if (!bulletsList || bulletsList.length === 0) return null;
 
           return (
             <div key={category} className="mb-6 border border-border rounded-md overflow-hidden shadow-md">
@@ -431,7 +409,6 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                         <div className="mb-4 pr-16 text-foreground break-words">{bullet.content}</div>
                       )}
                       
-                      {/* Bullet Actions - Only show when not editing */}
                       {editingBullet !== bullet.id && (
                         <div className="flex flex-wrap gap-2 justify-between items-center">
                           <div>
@@ -470,12 +447,11 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                         </div>
                       )}
                       
-                      {/* Reordering buttons - only show when not editing */}
                       {editingBullet !== bullet.id && (
                         <div className="absolute right-2 top-2 flex flex-col space-y-1">
                           <button 
                             onClick={(e) => {
-                              e.stopPropagation();
+                              e.stopPropagation(); // Prevent category collapse if inside clickable header
                               moveBulletUp(bullet.id);
                             }}
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50"
@@ -486,7 +462,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
                           </button>
                           <button 
                             onClick={(e) => {
-                              e.stopPropagation();
+                              e.stopPropagation(); // Prevent category collapse
                               moveBulletDown(bullet.id);
                             }}
                             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-50"
