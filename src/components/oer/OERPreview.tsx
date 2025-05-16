@@ -8,45 +8,53 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ClipboardCopy } from 'lucide-react'; // Import clipboard icon
 
-// Bullet and other interfaces
+// Consistent Bullet interface (matches BulletEditor)
 interface Bullet {
   id: string;
   competency: string;
   content: string;
   isApplied: boolean;
   category: string;
+  createdAt?: number; // Added for consistency
+  source?: string;   // Added for consistency
 }
 
 interface OERPreviewProps {
-  bullets?: Bullet[];
+  bullets?: Bullet[]; // These are initial/fallback bullets
   rankCategory?: string;
   rank?: string;
 }
 
-// Type definitions for component state
+// Type definitions for component state parts
 type BulletWeights = { [bulletId: string]: string };
 type CategorySummaries = { [category: string]: string };
 type LoadingSummaries = { [category: string]: boolean };
 type WeightErrors = { [category: string]: string };
-type WorkData = {
-  id?: string; // Include ID for updates
-  userId: string;
-  content: Bullet[] | string;
-  evaluationData?: {
+
+// Interface for the structured content to be saved
+interface StructuredContent {
+  bullets: Bullet[];
+  evaluationData: {
     startDate: string;
     endDate: string;
     officerName: string;
     unitName: string;
     position: string;
   };
-  bulletWeights?: BulletWeights;
-  summaries?: CategorySummaries;
-  _tempEvaluationData?: string;
-  _tempBulletWeights?: string;
-  _tempSummaries?: string;
+  bulletWeights: BulletWeights;
+  summaries: CategorySummaries;
+}
+
+// Type for the data payload sent to/from the API
+// 'content' can be the new structured object or, for backward compatibility during loading, an array of bullets.
+type WorkPayload = {
+  id?: string;
+  userId: string;
+  content: StructuredContent | Bullet[]; // Updated content type
 };
 
-export default function OERPreview({ bullets = [], rankCategory = 'Officer', rank = 'O3' }: OERPreviewProps) {
+
+export default function OERPreview({ bullets: propBullets = [], rankCategory = 'Officer', rank = 'O3' }: OERPreviewProps) {
   const { data: session, status } = useSession();
   const [localBullets, setLocalBullets] = useState<Bullet[]>([]);
   const [workId, setWorkId] = useState<string | undefined>(undefined);
@@ -70,96 +78,101 @@ export default function OERPreview({ bullets = [], rankCategory = 'Officer', ran
   const [weightErrors, setWeightErrors] = useState<WeightErrors>({});
 
   // Load user data when session is available
-useEffect(() => {
-  if (status === 'loading') return;
-  
-  if (status === 'authenticated' && (session?.user as { id: string }).id) {
-    setIsLoading(true);
+  useEffect(() => {
+    if (status === 'loading') return;
     
-    fetch('/api/work')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch user data');
-        return res.json();
-      })
-      .then(data => {
-        if (data && data.length > 0) {
-          const latestWork = data[0]; // Assuming sorted by latest first
-          setWorkId(latestWork.id);
-          
-          // Check if content is in the new nested format or old format
-          if (latestWork.content) {
-            if (latestWork.content.bullets && Array.isArray(latestWork.content.bullets)) {
-              // New nested format
-              setLocalBullets(latestWork.content.bullets);
-              
-              if (latestWork.content.evaluationData) {
-                setEvaluationData(latestWork.content.evaluationData);
+    if (status === 'authenticated' && (session?.user as { id: string })?.id) {
+      setIsLoading(true);
+      
+      fetch('/api/work') // Assuming this API returns WorkPayload compatible data
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch user data');
+          return res.json();
+        })
+        .then(apiData => { // Renamed to avoid confusion with component's 'data' state
+          // Assuming apiData is an array of work records, e.g., WorkPayload[]
+          if (apiData && apiData.length > 0) {
+            const latestWork = apiData[0] as WorkPayload; // Assuming sorted by latest first
+            setWorkId(latestWork.id);
+            
+            if (latestWork.content) {
+              // Check if content is in the new structured format
+              if (typeof latestWork.content === 'object' && 'bullets' in latestWork.content && Array.isArray(latestWork.content.bullets)) {
+                const structuredContent = latestWork.content as StructuredContent;
+                setLocalBullets(structuredContent.bullets);
+                
+                if (structuredContent.evaluationData) {
+                  setEvaluationData(structuredContent.evaluationData);
+                }
+                if (structuredContent.bulletWeights) {
+                  setBulletWeights(structuredContent.bulletWeights);
+                }
+                if (structuredContent.summaries) {
+                  setSummaries(structuredContent.summaries);
+                }
+              } else if (Array.isArray(latestWork.content)) {
+                // Old format - content is directly the bullets array
+                setLocalBullets(latestWork.content as Bullet[]);
               }
-              
-              if (latestWork.content.bulletWeights) {
-                setBulletWeights(latestWork.content.bulletWeights);
-              }
-              
-              if (latestWork.content.summaries) {
-                setSummaries(latestWork.content.summaries);
-              }
-            } else if (Array.isArray(latestWork.content)) {
-              // Old format - content is directly the bullets array
-              setLocalBullets(latestWork.content);
             }
+          } else {
+            // Initialize with prop bullets if no saved data
+            setLocalBullets(propBullets);
           }
-        } else {
-          // Initialize with prop bullets if no saved data
-          setLocalBullets(bullets);
-        }
-      })
-      .catch(error => {
-        console.error('Error loading work data:', error);
-        setLocalBullets(bullets); // Fallback to props
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  } else {
-    // Not authenticated, use prop bullets
-    setLocalBullets(bullets);
-    setIsLoading(false);
-  }
-}, [bullets, session, status]);
+        })
+        .catch(error => {
+          console.error('Error loading work data:', error);
+          setLocalBullets(propBullets); // Fallback to props
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      // Not authenticated or no user ID, use prop bullets
+      setLocalBullets(propBullets);
+      setIsLoading(false);
+    }
+  }, [propBullets, session, status]); // propBullets is used for initialization
 
   // Auto-save data when changes occur
   useEffect(() => {
-    if (status !== 'authenticated' || isLoading) return;
+    // Prevent saving if still loading, not authenticated, or no session user ID
+    if (isLoading || status !== 'authenticated' || !session?.user?.id) return;
     
     const saveTimeout = setTimeout(() => {
       saveWorkData();
-    }, 2000); // Debounce save to prevent too many requests
+    }, 2000); // Debounce save
     
     return () => clearTimeout(saveTimeout);
-  }, [localBullets, evaluationData, bulletWeights, summaries, status]);
+  }, [localBullets, evaluationData, bulletWeights, summaries, status, isLoading, session]); // Added isLoading and session to dependencies
 
   // Function to save work data
   const saveWorkData = async () => {
-    if (status !== 'authenticated' || !session?.user?.id) return;
+    if (status !== 'authenticated' || !session?.user?.id) {
+      console.log("Save aborted: User not authenticated or no user ID.");
+      return;
+    }
     
     setSaveStatus('Saving...');
     
     try {
-      // Temporarily only save the content property since that's all your schema supports
-      const workData: WorkData = {
+      // Construct the structured content
+      const structuredContentData: StructuredContent = {
+        bullets: localBullets,
+        evaluationData: evaluationData,
+        bulletWeights: bulletWeights,
+        summaries: summaries,
+      };
+
+      // Prepare the payload for the API
+      const payload: WorkPayload = {
         userId: session.user.id,
-        content: localBullets,
-        // We'll save the other data within the content field for now
-        // by creating a structured object
-        _tempEvaluationData: evaluationData,
-        _tempBulletWeights: bulletWeights,
-        _tempSummaries: summaries
+        content: structuredContentData,
       };
       
       const method = workId ? 'PUT' : 'POST';
-      
       if (workId) {
-        workData.id = workId;
+        payload.id = workId;
       }
       
       const response = await fetch('/api/work', {
@@ -167,13 +180,11 @@ useEffect(() => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(workData),
+        body: JSON.stringify(payload),
       });
       
-      // Check if the response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        // Handle non-JSON response
         const text = await response.text();
         console.error('Non-JSON response:', text.substring(0, 500) + '...');
         throw new Error(`Server returned non-JSON response. Status: ${response.status}`);
@@ -184,11 +195,10 @@ useEffect(() => {
         throw new Error(errorData.error || `Failed to save data (status: ${response.status})`);
       }
       
-      const data = await response.json();
+      const responseData = await response.json(); // Renamed to avoid conflict
       
-      // If this was a new record, store the ID for future updates
-      if (!workId && data.id) {
-        setWorkId(data.id);
+      if (!workId && responseData.id) {
+        setWorkId(responseData.id);
       }
       
       setSaveStatus('Saved');
@@ -196,6 +206,7 @@ useEffect(() => {
     } catch (error) {
       console.error('Error saving work data:', error);
       setSaveStatus('Failed to save');
+      // Consider providing more specific feedback to the user if possible
       setTimeout(() => setSaveStatus(null), 3000);
     }
   };
@@ -205,12 +216,10 @@ useEffect(() => {
     setEvaluationData(prev => ({...prev, [name]: value }));
   };
 
-  // Copy summary to clipboard function
   const copySummaryToClipboard = (category: string, summaryText: string) => {
     navigator.clipboard.writeText(summaryText).then(
       () => {
         setCopiedCategory(category);
-        // Reset the copied status after 2 seconds
         setTimeout(() => setCopiedCategory(null), 2000);
       },
       (err) => {
@@ -220,23 +229,23 @@ useEffect(() => {
     );
   };
 
-  const appliedBullets = useMemo(() => (localBullets.length > 0 ? localBullets : bullets).filter(bullet => bullet.isApplied), [localBullets, bullets]);
+  // Use propBullets as a fallback if localBullets is empty, ensures appliedBullets always has a source.
+  const appliedBullets = useMemo(() => 
+    (localBullets.length > 0 ? localBullets : propBullets).filter(bullet => bullet.isApplied), 
+    [localBullets, propBullets]
+  );
 
-  // Group applied bullets by Category and manage weight errors
   const groupedBulletsByCategory = useMemo(() => {
-    console.log("Recalculating grouped bullets by CATEGORY...");
     const groups: Record<string, (Bullet & { weight: string })[]> = {};
     const errors: WeightErrors = {};
     const currentWeights = { ...bulletWeights };
 
-    // Initialize weights for any newly applied bullets
     appliedBullets.forEach(bullet => {
         if (currentWeights[bullet.id] === undefined) {
-            currentWeights[bullet.id] = '';
+            currentWeights[bullet.id] = ''; // Initialize weight if not present
         }
     });
 
-    // Group bullets
     appliedBullets.forEach(bullet => {
       const category = bullet.category || 'Uncategorized';
       if (!groups[category]) groups[category] = [];
@@ -246,7 +255,6 @@ useEffect(() => {
        });
     });
 
-    // Calculate sums and check errors for each category group
     Object.entries(groups).forEach(([category, categoryBullets]) => {
         if (categoryBullets.length > 0) {
           const sum = categoryBullets.reduce((acc, b) => acc + (parseInt(b.weight, 10) || 0), 0);
@@ -254,11 +262,14 @@ useEffect(() => {
           if (hasEnteredWeight && sum !== 100) {
             errors[category] = `Weights must sum to 100% (currently ${sum}%)`;
           } else {
-             delete errors[category];
+             delete errors[category]; // Clear error if sum is 100 or no weights entered
           }
         }
     });
 
+    // Schedule state updates to avoid direct update during render phase
+    // This is a common pattern to handle derived state that also needs to update other state.
+    // However, ideally, this logic might be better placed in useEffect hooks.
     if (JSON.stringify(errors) !== JSON.stringify(weightErrors)) {
          setTimeout(() => setWeightErrors(errors), 0);
     }
@@ -267,9 +278,8 @@ useEffect(() => {
     }
 
     return groups;
-  }, [appliedBullets, bulletWeights, weightErrors]);
+  }, [appliedBullets, bulletWeights, weightErrors]); // weightErrors is included to re-evaluate if errors change externally, though it's set here.
 
-  // Handler for Weight Input Change
   const handleWeightChange = (bulletId: string, value: string) => {
       const numericValue = parseInt(value, 10);
       if (value === '' || (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 100)) {
@@ -277,10 +287,7 @@ useEffect(() => {
       }
   };
 
-  // Handler for Summarize Button Click (Summarizes by Category)
   const handleSummarizeCategory = useCallback(async (category: string, categoryBullets: (Bullet & { weight: string | number })[]) => {
-    console.log(`Summarizing category ${category}...`);
-
     const bulletsWithParsedWeights = categoryBullets.map(b => ({
         content: b.content,
         competency: b.competency,
@@ -288,23 +295,22 @@ useEffect(() => {
     }));
 
     const currentSum = bulletsWithParsedWeights.reduce((acc, b) => acc + b.weight, 0);
-    if (currentSum !== 100) {
-        alert(`Cannot summarize "${category}". Please ensure weights sum to 100%.`);
+    if (currentSum !== 100 && categoryBullets.some(b => b.weight !== '')) { // Only enforce if some weights are entered
+        alert(`Cannot summarize "${category}". Please ensure weights sum to 100% or are all empty.`);
         return;
     }
 
     setLoadingSummaries(prev => ({ ...prev, [category]: true }));
-    setSummaries(prev => ({ ...prev, [category]: '' }));
+    setSummaries(prev => ({ ...prev, [category]: '' })); // Clear previous summary
 
     try {
         const payload = {
-            bullets: bulletsWithParsedWeights.filter(b => b.weight > 0),
+            bullets: bulletsWithParsedWeights.filter(b => b.weight > 0), // Only send bullets with weight
             categoryName: category,
             rankCategory,
             rank,
         };
-        console.log("Sending payload to /api/summarize:", payload);
-
+        
         const response = await fetch('/api/summarize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -312,13 +318,11 @@ useEffect(() => {
         });
 
         const data = await response.json();
-        console.log("Received response from /api/summarize:", data);
 
         if (response.ok && data.success) {
             setSummaries(prev => ({ ...prev, [category]: data.summary }));
-            
-            // Save after summarizing
-            saveWorkData();
+            // Call saveWorkData after a successful summary to persist it
+            saveWorkData(); 
         } else {
             const errorMsg = `Error: ${data.error || 'Failed to summarize category'}`;
             setSummaries(prev => ({ ...prev, [category]: errorMsg }));
@@ -332,23 +336,20 @@ useEffect(() => {
     } finally {
         setLoadingSummaries(prev => ({ ...prev, [category]: false }));
     }
-  }, [rankCategory, rank, saveWorkData]);
+  }, [rankCategory, rank, saveWorkData]); // saveWorkData is a dependency
 
- // Function to generate the final PDF/HTML document
-const generateReportDocument = async () => {
+ const generateReportDocument = async () => {
   if (!evaluationData.officerName || !evaluationData.startDate || !evaluationData.endDate) {
     alert('Please fill in Member Name and Marking Period dates.');
     return;
   }
-  // Check for weight errors before generating final doc
   const hasErrors = Object.values(weightErrors).some(e => !!e);
   if (hasErrors) {
-    alert('Please correct the weight distribution errors (must sum to 100% for each category) before generating the document.');
+    alert('Please correct the weight distribution errors (must sum to 100% for each category with weights) before generating the document.');
     return;
   }
 
   setIsGeneratingDoc(true);
-
   try {
     const response = await fetch('/api/oer', {
       method: 'POST',
@@ -359,67 +360,64 @@ const generateReportDocument = async () => {
         position: evaluationData.position,
         startDate: evaluationData.startDate,
         endDate: evaluationData.endDate,
-        bullets: appliedBullets,
+        // Pass the full structured content for the report generation
+        // The API can then extract bullets, summaries, etc. as needed
+        structuredContent: { 
+          bullets: appliedBullets, // Or localBullets if all should be considered
+          evaluationData: evaluationData,
+          bulletWeights: bulletWeights,
+          summaries: summaries 
+        },
         rankCategory: rankCategory,
         rank: rank
       }),
     });
 
-    // Check content type to determine how to handle the response
     const contentType = response.headers.get('content-type');
-    
     if (!response.ok) {
-      // If error response is JSON, try to extract the error message
       if (contentType && contentType.includes('application/json')) {
         const errorData = await response.json();
         throw new Error(errorData.error || `Failed to generate document (status: ${response.status})`);
       } else {
-        // If not JSON, get the text and include part of it in the error
         const errorText = await response.text();
-        const trimmedError = errorText.substring(0, 100) + (errorText.length > 100 ? '...' : '');
-        console.error('Error response from server:', trimmedError);
+        console.error('Error response from server:', errorText.substring(0,100));
         throw new Error(`Server error (${response.status}): Failed to generate document`);
       }
     }
 
-    // For successful responses, expect a PDF blob
     if (contentType && contentType.includes('application/pdf')) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-
-      // Trigger download
       const a = document.createElement('a');
       a.href = url;
       const filePrefix = rankCategory === 'Officer' ? 'OER' : `EER_${rank}`;
-      const safeName = evaluationData.officerName.replace(/[^a-zA-Z0-9]/g, '_');
+      const safeName = evaluationData.officerName.replace(/[^a-zA-Z0-9]/g, '_') || 'Report';
       const dateSuffix = new Date().toISOString().split('T')[0];
-      const fileName = `${filePrefix}_${safeName}_${dateSuffix}.pdf`;
-      a.download = fileName;
+      a.download = `${filePrefix}_${safeName}_${dateSuffix}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } else {
-      // Unexpected content type
       console.error('Unexpected content type:', contentType);
-      throw new Error('Server returned an unexpected response format');
+      throw new Error('Server returned an unexpected response format for the document.');
     }
   } catch (error) {
     console.error('Error generating report document:', error);
-    alert(`An error occurred while generating the evaluation document: ${error instanceof Error ? error.message : String(error)}`);
+    alert(`An error occurred: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     setIsGeneratingDoc(false);
   }
 };
 
-  // Determine title and categories based on rank
   const { reportTitle, evaluationCategories } = useMemo(() => {
      const officerTitle = 'Officer Evaluation Report';
      const officerCategories = ['Performance of Duties', 'Leadership Skills', 'Personal and Professional Qualities'];
-     const enlistedCategories = ['Military', 'Performance', 'Professional Qualities', 'Leadership'];
+     const enlistedCategories = ['Military', 'Performance', 'Professional Qualities', 'Leadership']; // Define these as needed
      const rankTitles: Record<string, string> = {
         'E4': 'Third Class Petty Officer', 'E5': 'Second Class Petty Officer',
-        'E6': 'First Class Petty Officer', 'E7': 'Chief Petty Officer', 'E8': 'Senior Chief Petty Officer'
+        'E6': 'First Class Petty Officer', 'E7': 'Chief Petty Officer', 'E8': 'Senior Chief Petty Officer',
+        // Add other E-ranks as needed
       };
      const enlistedTitle = `${rankTitles[rank] || 'Enlisted'} Evaluation Report`;
 
@@ -428,7 +426,7 @@ const generateReportDocument = async () => {
         : { reportTitle: enlistedTitle, evaluationCategories: enlistedCategories };
   }, [rankCategory, rank]);
 
-  if (isLoading) {
+  if (isLoading && status === 'loading') { // Show skeleton only during initial auth and data load
     return (
       <div className="max-w-4xl mx-auto p-6">
         <Skeleton className="h-8 w-1/3 mb-6" />
@@ -441,15 +439,16 @@ const generateReportDocument = async () => {
     );
   }
 
+  // Main component UI
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">{reportTitle} Preview & Summarization</h2>
         {saveStatus && (
           <span className={`text-sm px-2 py-1 rounded ${
-            saveStatus === 'Saved' ? 'bg-green-100 text-green-800' : 
-            saveStatus === 'Saving...' ? 'bg-blue-100 text-blue-800' : 
-            'bg-red-100 text-red-800'
+            saveStatus === 'Saved' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100' : 
+            saveStatus === 'Saving...' ? 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100' : 
+            'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100'
           }`}>
             {saveStatus}
           </span>
@@ -457,8 +456,8 @@ const generateReportDocument = async () => {
       </div>
 
       {/* Evaluation Info Form */}
-      <div className="bg-background border border-ring rounded-md p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4">Report Information</h3>
+      <div className="bg-card border border-border rounded-md p-6 mb-6 shadow">
+        <h3 className="text-lg font-semibold mb-4 text-card-foreground">Report Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="officerName" className="block text-sm font-medium mb-1 text-foreground">
@@ -467,7 +466,7 @@ const generateReportDocument = async () => {
             <Input 
             id="officerName" 
             name="officerName"
-            className="bg-card border border-ring card-foreground text-foreground-muted"
+            className="bg-background border-input text-foreground" // Simplified classes, Tailwind handles dark mode
             value={evaluationData.officerName} 
             onChange={handleInputChange} 
             required />
@@ -477,7 +476,7 @@ const generateReportDocument = async () => {
             <Input 
             id="unitName" 
             name="unitName"
-            className="bg-card border border-ring card-foreground text-foreground-muted"
+            className="bg-background border-input text-foreground"
             value={evaluationData.unitName} 
             onChange={handleInputChange} 
             required/>
@@ -487,18 +486,19 @@ const generateReportDocument = async () => {
             <Input 
             id="position" 
             name="position"
-            className="bg-card border border-ring card-foreground text-foreground-muted"
+            className="bg-background border-input text-foreground"
             value={evaluationData.position} 
-            onChange={handleInputChange} />
+            onChange={handleInputChange} 
+            required/>
           </div>
           <div className="grid grid-cols-2 gap-2 md:col-span-1">
             <div>
-              <label htmlFor="startDate" className="block text-smfont-medium mb-1 text-foreground">Start Date: <span className="text-red-500">*</span></label>
+              <label htmlFor="startDate" className="block text-sm font-medium mb-1 text-foreground">Start Date: <span className="text-red-500">*</span></label>
               <Input 
               type="date" 
               id="startDate" 
               name="startDate"
-              className="bg-card border border-ring card-foreground text-foreground-muted"
+              className="bg-background border-input text-foreground"
               value={evaluationData.startDate} 
               onChange={handleInputChange} required />
             </div>
@@ -507,7 +507,7 @@ const generateReportDocument = async () => {
               <Input type="date" 
               id="endDate" 
               name="endDate"
-              className="bg-card border border-ring card-foreground text-foreground-muted"
+              className="bg-background border-input text-foreground"
               value={evaluationData.endDate} 
               onChange={handleInputChange} 
               required />
@@ -517,49 +517,47 @@ const generateReportDocument = async () => {
       </div>
 
       {/* Render Sections by Category */}
-      {appliedBullets.length === 0 ? (
-          <div className="text-center p-6 bg-background border border-ring rounded-md border">
-              <p className="text-destructive">No bullets have been applied yet.</p>
-              <p className="text-sm text-gray-400 mt-1">Go to the 'Manage Bullets' tab to apply bullets first.</p>
+      {appliedBullets.length === 0 && !isLoading ? ( // Show only if not loading and no bullets
+          <div className="text-center p-6 bg-card border border-border rounded-md shadow">
+              <p className="text-destructive-foreground">No bullets have been applied yet.</p>
+              <p className="text-sm text-muted-foreground mt-1">Go to the 'Manage Bullets' tab to apply bullets first.</p>
           </div>
       ) : (
           evaluationCategories.map(category => {
               const categoryBullets = groupedBulletsByCategory[category] || [];
-              if (categoryBullets.length === 0) return null; // Don't render empty categories
+              if (categoryBullets.length === 0 && !loadingSummaries[category]) return null;
 
               const error = weightErrors[category];
               const isLoadingSummary = loadingSummaries[category];
               const summary = summaries[category];
               const currentWeightSum = categoryBullets.reduce((acc, b) => acc + (parseInt(b.weight as string, 10) || 0), 0);
-              const isWeightValid = !error; // Valid if no error string exists for this category
+              const isWeightValidForSummarize = !error || categoryBullets.every(b => b.weight === '' || b.weight === '0'); // Valid if no error OR all weights are empty/zero
               const isCopied = copiedCategory === category;
 
               return (
-                  <div key={category} className="mb-8 p-4 border border-ring rounded-lg bg-background shadow-sm">
-                      {/* Category Title & Weight Sum */}
-                      <div className="flex justify-between items-center mb-4 border-b pb-2">
-                           <h3 className="text-lg font-semibold">{category}</h3>
-                           <span className={`text-xs font-mono p-1 px-2 rounded ${currentWeightSum === 100 ? 'bg-green-100 text-green-800' : (currentWeightSum > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600')}`}>
+                  <div key={category} className="mb-8 p-4 border border-border rounded-lg bg-card shadow-sm">
+                      <div className="flex justify-between items-center mb-4 border-b border-border pb-2">
+                           <h3 className="text-lg font-semibold text-card-foreground">{category}</h3>
+                           <span className={`text-xs font-mono p-1 px-2 rounded ${currentWeightSum === 100 ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100' : (currentWeightSum > 0 ? 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100' : 'bg-muted text-muted-foreground')}`}>
                                 Total Weight: {currentWeightSum}%
                            </span>
                       </div>
 
-                      {/* Bullets and Weight Inputs */}
                       <div className="space-y-3 mb-4">
                           {categoryBullets.map((bullet) => (
-                              <div key={bullet.id} className="flex items-start gap-3 p-3 border border-ring rounded-md bg-card">
+                              <div key={bullet.id} className="flex items-start gap-3 p-3 border border-border rounded-md bg-background shadow-inner">
                                   <div className="flex-grow">
-                                      <div className="text-xs text-gray-500 mb-1">{bullet.competency}</div>
-                                      <p className="text-sm">{bullet.content}</p>
+                                      <div className="text-xs text-muted-foreground mb-1">{bullet.competency}</div>
+                                      <p className="text-sm text-foreground">{bullet.content}</p>
                                   </div>
                                   <div className="w-20 shrink-0">
-                                      <label htmlFor={`weight-${bullet.id}`} className="sr-only">Weight (%) for bullet {bullet.id}</label>
+                                      <label htmlFor={`weight-${bullet.id}`} className="sr-only">Weight (%) for {bullet.id}</label>
                                       <Input
                                           id={`weight-${bullet.id}`}
                                           type="number" min="0" max="100" step="1"
-                                          value={bulletWeights[bullet.id] || ''} // Use state value
+                                          value={bulletWeights[bullet.id] || ''}
                                           onChange={(e) => handleWeightChange(bullet.id, e.target.value)}
-                                          className={`h-8 text-sm text-right ${error ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
+                                          className={`h-8 text-sm text-right bg-background border-input text-foreground ${error ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                                           placeholder="%"
                                           aria-invalid={!!error}
                                           aria-describedby={error ? `error-${category}` : undefined}
@@ -567,7 +565,6 @@ const generateReportDocument = async () => {
                                   </div>
                               </div>
                           ))}
-                           {/* Validation Message */}
                            {error && (
                                <Alert variant="destructive" className="mt-2 text-xs py-1 px-2" id={`error-${category}`}>
                                    <AlertDescription>{error}</AlertDescription>
@@ -575,11 +572,10 @@ const generateReportDocument = async () => {
                            )}
                       </div>
 
-                      {/* Summarization Area */}
-                      <div className="mt-4 border-t pt-4">
+                      <div className="mt-4 border-t border-border pt-4">
                            <Button
                               onClick={() => handleSummarizeCategory(category, categoryBullets)}
-                              disabled={!isWeightValid || isLoadingSummary || categoryBullets.length === 0}
+                              disabled={!isWeightValidForSummarize || isLoadingSummary || categoryBullets.length === 0}
                               size="sm"
                             >
                               {isLoadingSummary ? (
@@ -590,16 +586,15 @@ const generateReportDocument = async () => {
                               ) : `Summarize ${category}`}
                             </Button>
                         
-                          {/* Display Summary Area with Copy Button */}
                            {summary && (
-                               <div className="mt-3 p-3 border rounded-md bg-blue-50 text-sm text-gray-800 relative">
+                               <div className="mt-3 p-3 border border-border rounded-md bg-blue-50 dark:bg-blue-900/30 text-sm text-blue-800 dark:text-blue-200 relative shadow-inner">
                                    <div className="flex justify-between items-center mb-2">
-                                       <p className="font-medium text-gray-600">AI Summary:</p>
+                                       <p className="font-medium text-blue-700 dark:text-blue-300">AI Summary:</p>
                                        <Button
                                            onClick={() => copySummaryToClipboard(category, summary)}
                                            size="sm"
                                            variant="ghost"
-                                           className="p-1 h-8 text-xs flex items-center gap-1 bg-blue-100 hover:bg-blue-200 text-blue-800"
+                                           className="p-1 h-8 text-xs flex items-center gap-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-800 dark:hover:bg-blue-700 text-blue-800 dark:text-blue-100"
                                        >
                                            <ClipboardCopy className="h-3 w-3 mr-1" />
                                            {isCopied ? 'Copied!' : 'Copy'}
@@ -608,12 +603,11 @@ const generateReportDocument = async () => {
                                    <p className="whitespace-pre-wrap">{summary}</p>
                                </div>
                            )}
-                           {/* Show skeleton while loading */}
                            {isLoadingSummary && !summary && (
-                               <div className="mt-3 space-y-2 p-3 border rounded-md bg-grey-50">
-                                   <Skeleton className="h-4 w-3/4" />
-                                   <Skeleton className="h-4 w-full" />
-                                   <Skeleton className="h-4 w-5/6" />
+                               <div className="mt-3 space-y-2 p-3 border border-border rounded-md bg-muted/50">
+                                   <Skeleton className="h-4 w-3/4 bg-muted" />
+                                   <Skeleton className="h-4 w-full bg-muted" />
+                                   <Skeleton className="h-4 w-5/6 bg-muted" />
                                </div>
                            )}
                       </div>
@@ -622,14 +616,20 @@ const generateReportDocument = async () => {
           })
       )}
 
-      {/* Generate Document Button */}
       <div className="mt-6 flex justify-end items-center">
         <Button
             onClick={generateReportDocument}
             disabled={isGeneratingDoc || appliedBullets.length === 0 || Object.values(weightErrors).some(e => !!e)}
-            className="px-4 py-2"
+            className="px-4 py-2" // Standard button padding
         >
-            {isGeneratingDoc ? 'Generating PDF...' : `Generate ${rankCategory === 'Officer' ? 'OER' : 'Evaluation'} Document`}
+            {isGeneratingDoc ? (
+              <> 
+                <Skeleton className="h-4 w-4 mr-2 rounded-full animate-spin border-t-transparent border-2 border-primary-foreground"/>
+                Generating PDF...
+              </>
+            ) : (
+              `Generate ${rankCategory === 'Officer' ? 'OER' : 'Evaluation'} Document`
+            )}
         </Button>
       </div>
     </div>
