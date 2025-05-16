@@ -8,7 +8,8 @@ import {
   useMemo,
   KeyboardEvent,
 } from 'react';
-import { ArrowRightCircle, ArrowRightSquare, Loader2 } from 'lucide-react';
+// Removed ArrowRightSquare as it was unused
+import { ArrowRightCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import SpeechToText from '@/components/speech/SpeechToText';
 import MobileSpeechButton from '@/components/speech/MobileSpeechButton';
@@ -239,236 +240,232 @@ export default function ChatInterface({
           if (list.includes(competency)) return cat;
         }
       }
-      return 'Other';
+      return 'Other'; // Fallback category if not found
     },
     [rank, rankCategory, competencyDefinitions]
   );
 
   /* populate default competency */
   useEffect(() => {
-    const list = getCompetencies();
-    if (list.length && !selectedCompetency) setSelectedCompetency(list[0]);
-    if (!list.includes(selectedCompetency) && list.length) {
-      setSelectedCompetency(list[0]);
+    const currentCompetencies = getCompetencies();
+    if (currentCompetencies.length > 0) {
+      if (!selectedCompetency || !currentCompetencies.includes(selectedCompetency)) {
+        setSelectedCompetency(currentCompetencies[0]);
+      }
     }
-  }, [getCompetencies, rank, rankCategory, selectedCompetency]);
+  }, [getCompetencies, selectedCompetency]); // Removed rank and rankCategory as getCompetencies already depends on them
 
   /* scroll to bottom on new messages */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages]);
 
+  /* Focus input when not loading */
   useEffect(() => {
-    if (!isLoading) inputRef.current?.focus();
+    if (!isLoading) {
+      inputRef.current?.focus();
+    }
   }, [isLoading]);
 
   /* ───────────  bullet detection  ─────────── */
- // Fix the detectBullet function in ChatInterface.tsx
-// Around line 190
+  function detectBullet(text: string): { isBullet: boolean; bulletContent: string } {
+    const exactPrefixes = [
+      "OK, here's a draft bullet:",
+      "Here's a draft bullet:",
+      "Here's your bullet:",
+      'Bullet:'
+    ];
 
-function detectBullet(text: string): { isBullet: boolean; bulletContent: string } {
-  // More precise detection logic - only detect very explicit bullet prefixes
-  const exactPrefixes = [
-    "OK, here's a draft bullet:",
-    "Here's a draft bullet:",
-    "Here's your bullet:",
-    'Bullet:'
-  ];
+    // Avoid classifying questions as bullets unless they explicitly contain "bullet"
+    if (text.includes('?') && !text.toLowerCase().includes('bullet')) {
+      return { isBullet: false, bulletContent: '' };
+    }
 
-  // Only detect actual bullets (not questions or other responses)
-  if (text.includes('?') && !text.includes('bullet')) {
-    return { isBullet: false, bulletContent: '' };
-  }
-
-  // Check for exact prefixes only
-  for (const prefix of exactPrefixes) {
-    if (text.includes(prefix)) {
-      const parts = text.split(prefix);
-      if (parts.length > 1) {
-        // Take only what comes immediately after the prefix
-        let bulletText = parts[1].trim();
+    for (const prefix of exactPrefixes) {
+      const lowerText = text.toLowerCase();
+      const lowerPrefix = prefix.toLowerCase();
+      if (lowerText.startsWith(lowerPrefix)) { // Check if text STARTS with prefix for more accuracy
+        let bulletText = text.substring(prefix.length).trim();
         
         // If there's a paragraph break, only take content before it
-        if (bulletText.includes('\n\n')) {
-          bulletText = bulletText.split('\n\n')[0].trim();
+        const paragraphBreakIndex = bulletText.indexOf('\n\n');
+        if (paragraphBreakIndex !== -1) {
+          bulletText = bulletText.substring(0, paragraphBreakIndex).trim();
         }
         
+        // Further cleanup: remove common conversational closers if they appear after the bullet
+        const closers = ["Is there anything else I can help you with?", "Let me know if you need further adjustments."];
+        for (const closer of closers) {
+          if (bulletText.endsWith(closer)) {
+            bulletText = bulletText.substring(0, bulletText.length - closer.length).trim();
+          }
+        }
+
         if (bulletText) {
           return { isBullet: true, bulletContent: bulletText };
         }
       }
     }
+    return { isBullet: false, bulletContent: '' };
   }
 
-  // No bullet found
-  return { isBullet: false, bulletContent: '' };
-}
-
-/* ───────────  Speech-to-text handler  ─────────── */
-const handleSpeechTranscript = useCallback((transcript: string) => {
-  setInput(prev => {
-    // If there's already text, append with space
-    if (prev.trim()) {
-      return `${prev.trim()} ${transcript}`;
-    }
-    return transcript;
-  });
-  
-  // Focus the input after transcription completes
-  setTimeout(() => {
-    inputRef.current?.focus();
-  }, 100);
-}, []);
-
-  /* ───────────  API call  ─────────── */
-// Improved error handling for API calls
-const handleSendMessage = async () => {
-  const clean = input.trim();
-  if (!clean || !selectedCompetency || isLoading) return;
-
-  setErrorMessage(null);
-
-  const userMsg: DisplayMessage = {
-    id: msgId(),
-    role: 'user',
-    content: clean,
-    competency: selectedCompetency,
-    timestamp: Date.now(),
-  };
-  setDisplayMessages(prev => [...prev, userMsg]);
-  setInput('');
-  setIsLoading(true);
-
-  const historyForApi: ApiMessage[] = [...displayMessages, userMsg].map(m => ({
-    role: m.role,
-    content: m.content,
-  }));
-
-  try {
-    // Add absolute URL for API calls to ensure proper routing
-    const apiUrl = window.location.origin + '/api/generate';
-    console.log('Sending request to:', apiUrl);
-    
-    const resp = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        history: historyForApi,
-        competency: selectedCompetency,
-        rankCategory,
-        rank,
-      }),
+  /* ───────────  Speech-to-text handler  ─────────── */
+  const handleSpeechTranscript = useCallback((transcript: string) => {
+    setInput(prev => {
+      if (prev.trim()) {
+        return `${prev.trim()} ${transcript}`;
+      }
+      return transcript;
     });
     
-    // Improved error handling for non-JSON responses
-    if (!resp.ok) {
-      const contentType = resp.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await resp.json();
-        throw new Error(errorData.error || `Request failed with status: ${resp.status}`);
-      } else {
-        // Handle HTML or other non-JSON error responses
-        const errorText = await resp.text();
-        console.error('Received non-JSON error response:', errorText.substring(0, 200) + '...');
-        throw new Error(`API error (${resp.status}): The server returned an unexpected response format`);
-      }
-    }
-    
-    // Parse response data with error handling
-    let data;
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100); // Ensure focus happens after state update
+  }, []);
+
+  /* ───────────  API call  ─────────── */
+  const handleSendMessage = async () => {
+    const cleanInput = input.trim();
+    if (!cleanInput || !selectedCompetency || isLoading) return;
+
+    setErrorMessage(null); // Clear previous errors
+
+    const userMsg: DisplayMessage = {
+      id: msgId(),
+      role: 'user',
+      content: cleanInput,
+      competency: selectedCompetency,
+      timestamp: Date.now(),
+    };
+    setDisplayMessages(prev => [...prev, userMsg]);
+    setInput(''); // Clear input after sending
+    setIsLoading(true);
+
+    // Prepare history, excluding any previous error messages from the assistant
+    const historyForApi: ApiMessage[] = displayMessages
+      .filter(m => m.type !== 'error') // Exclude previous error messages
+      .map(m => ({ role: m.role, content: m.content }));
+    historyForApi.push({ role: userMsg.role, content: userMsg.content });
+
+
     try {
-      data = await resp.json();
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      throw new Error('Failed to parse API response as JSON');
-    }
-    
-    // Validate the response data
-    if (!data || !data.success) {
-      throw new Error(data?.error || 'API returned unsuccessful response');
-    }
-
-    const text: string = data.response;
-    
-    // Check if response is empty
-    if (!text || typeof text !== 'string') {
-      throw new Error('Empty or invalid response from API');
-    }
-    
-    // Now handle bullet detection with the improved detection logic
-    const { isBullet, bulletContent } = detectBullet(text);
-
-    let finalContent = text;
-    let msgType: DisplayMessage['type'] = isBullet ? 'bullet' : 'question';
-
-    // Clear follow-up question processing - only process as bullet if it's definitely a bullet
-    if (isBullet && bulletContent && bulletContent.length > 10 && onBulletGenerated) {
-      // Create a new bullet ID each time
-      const newBulletId = bulletId();
+      const apiUrl = window.location.origin + '/api/generate';
+      console.log('Sending request to:', apiUrl, { history: historyForApi, competency: selectedCompetency, rankCategory, rank });
       
-      // Create the bullet object with all required properties
-      const bulletObj = {
-        id: newBulletId,
-        competency: selectedCompetency,
-        content: bulletContent,
-        isApplied: false,
-        category: getCategoryFromCompetency(selectedCompetency),
-        createdAt: Date.now(),
-        source: userMsg.id,
-      };
+      const resp = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          history: historyForApi,
+          competency: selectedCompetency,
+          rankCategory,
+          rank,
+        }),
+      });
       
-      // Call the parent handler
-      onBulletGenerated(bulletObj);
-      finalContent = wrapWithNotice(text);
+      if (!resp.ok) {
+        const contentType = resp.headers.get('content-type');
+        let errorDetail = `Request failed with status: ${resp.status}`;
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await resp.json();
+          errorDetail = errorData.error || errorDetail;
+        } else {
+          const errorText = await resp.text();
+          console.error('Received non-JSON error response:', errorText.substring(0, 200) + '...');
+          errorDetail = `API error (${resp.status}): Unexpected response format.`;
+        }
+        throw new Error(errorDetail);
+      }
+      
+      let data;
+      try {
+        data = await resp.json();
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        throw new Error('Failed to parse API response. Please check the server logs.');
+      }
+      
+      if (!data || !data.success || typeof data.response !== 'string') {
+        throw new Error(data?.error || 'API returned an unsuccessful or invalid response.');
+      }
+
+      const assistantResponseText: string = data.response;
+      
+      if (!assistantResponseText.trim()) {
+        throw new Error('Received an empty response from the API.');
+      }
+      
+      const { isBullet, bulletContent } = detectBullet(assistantResponseText);
+      let finalContent = assistantResponseText;
+      // Changed 'let msgType' to 'const msgType'
+      const msgType: DisplayMessage['type'] = isBullet ? 'bullet' : 'question';
+
+      if (isBullet && bulletContent && bulletContent.length > 10 && onBulletGenerated) {
+        const newBulletId = bulletId();
+        const bulletObj: BulletData = {
+          id: newBulletId,
+          competency: selectedCompetency,
+          content: bulletContent,
+          isApplied: false,
+          category: getCategoryFromCompetency(selectedCompetency),
+          createdAt: Date.now(),
+          source: `chat_${userMsg.id}`, // Link bullet source to user message ID
+        };
+        
+        onBulletGenerated(bulletObj);
+        // Use the original assistant response text, but add a notice.
+        // The bulletContent is what's saved, assistantResponseText is what's displayed.
+        finalContent = wrapWithNotice(assistantResponseText); 
+      }
+      
+      setDisplayMessages(prev => [
+        ...prev,
+        {
+          id: msgId(),
+          role: 'assistant',
+          content: finalContent,
+          timestamp: Date.now(),
+          type: msgType,
+        },
+      ]);
+    } catch (err) {
+      console.error('Chat error:', err);
+      const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
+      setErrorMessage(errorMsg); // Display error message to user
+      setDisplayMessages(prev => [
+        ...prev,
+        {
+          id: msgId(),
+          role: 'assistant',
+          content: `Error: ${errorMsg}`, // Display a user-friendly error in chat
+          timestamp: Date.now(),
+          type: 'error',
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Add message to display history
-    setDisplayMessages(prev => [
-      ...prev,
-      {
-        id: msgId(),
-        role: 'assistant',
-        content: finalContent,
-        timestamp: Date.now(),
-        type: msgType,
-      },
-    ]);
-  } catch (err) {
-    console.error('Chat error:', err);
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    setErrorMessage(msg);
-    setDisplayMessages(prev => [
-      ...prev,
-      {
-        id: msgId(),
-        role: 'assistant',
-        content: `Error: ${msg}. Please try again.`,
-        timestamp: Date.now(),
-        type: 'error',
-      },
-    ]);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   /* ───────────  reset chat  ─────────── */
   const handleReset = () => {
-    if (window.confirm('Clear this conversation?')) {
+    if (window.confirm('Are you sure you want to clear this conversation?')) {
       setDisplayMessages([]);
       setInput('');
-      setErrorMessage(null);
+      setErrorMessage(null); // Clear any error messages
     }
   };
 
   /* ───────────  keydown helper  ─────────── */
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    const isMobile = window.innerWidth <= 768;
+    const isMobileDevice = typeof window !== 'undefined' && window.innerWidth <= 768;
+    // Ctrl+Enter or Cmd+Enter for all devices
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       handleSendMessage();
-    }
-    if (!isMobile && e.key === 'Enter' && !e.shiftKey && !isLoading) {
+    } 
+    // Enter key for non-mobile, if not loading and shift key is not pressed
+    else if (!isMobileDevice && e.key === 'Enter' && !e.shiftKey && !isLoading) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -483,55 +480,54 @@ const handleSendMessage = async () => {
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex-1">
           <label
-            htmlFor="competency"
+            htmlFor="competency-select" // Changed id for clarity
             className="mb-1 block text-sm font-medium text-card-foreground"
           >
             Select Competency Area:
           </label>
           <select
-            id="competency"
+            id="competency-select"
             value={selectedCompetency}
             onChange={e => setSelectedCompetency(e.target.value)}
             className={cn(
-              'w-full rounded-md border border-ring bg-background px-2 py-2 text-foreground shadow-sm',
+              'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm', // Adjusted padding and text size
               'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
             )}
           >
             {getCompetencies().map(c => (
-              <option key={c}>{c}</option>
+              <option key={c} value={c}>{c}</option> // Added value attribute
             ))}
           </select>
         </div>
 
         {displayMessages.length > 0 && (
-          <button
+          <Button
+            variant="ghost" // Use ghost variant for a less intrusive button
+            size="sm"
             onClick={handleReset}
-            className={cn(
-              'px-3 py-2 text-sm transition-colors',
-              'rounded text-foreground hover:text-destructive',
-              'focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-1'
-            )}
+            className="text-destructive hover:text-destructive focus:ring-destructive"
           >
             Clear Chat
-          </button>
+          </Button>
         )}
       </div>
 
       {/* chat history */}
       <div
-  className={cn(
-    'mb-4 flex-1 overflow-y-auto rounded-md border border-ring bg-background p-4 text-card-foreground',
-    isMobile ? 'min-h-[200px] max-h-[350px] mobile-chat-container' : 'min-h-[300px] max-h-[500px]'
-  )}
->
+        className={cn(
+          'mb-4 flex-1 overflow-y-auto rounded-md border border-border bg-card p-4 text-card-foreground shadow-inner', // Use card as background for chat history
+          isMobile ? 'min-h-[200px] max-h-[calc(100vh-350px)]' : 'min-h-[300px] max-h-[calc(100vh-400px)]' // Dynamic max height
+        )}
+      >
         {displayMessages.length === 0 ? (
-          <div className="mt-10 px-4 text-center text-muted-foreground">
-  <p>Enter your achievement below or use the microphone to speak.</p>
-  <p className="mt-2 text-sm">
-    The assistant will refine it into a {' '}
-    {selectedCompetency} bullet for ({rankCategory} {rank}).
-  </p>
-</div>
+          <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+            <p className="text-base">Enter your achievement below or use the microphone.</p>
+            <p className="mt-2 text-sm">
+              The assistant will refine it into a{' '}
+              <span className="font-semibold text-foreground">{selectedCompetency || 'selected'}</span> bullet for{' '}
+              <span className="font-semibold text-foreground">{rankCategory} {rank}</span>.
+            </p>
+          </div>
         ) : (
           <div className="space-y-4">
             {displayMessages.map(m => (
@@ -544,23 +540,23 @@ const handleSendMessage = async () => {
               >
                 <div
                   className={cn(
-                    'max-w-[85%] rounded-lg px-4 py-2',
+                    'max-w-[85%] rounded-lg px-3 py-2 shadow-sm', // Adjusted padding
                     m.role === 'user'
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground',
+                      : 'bg-muted text-muted-foreground', // Use muted for assistant
                     m.type === 'error' && 'bg-destructive text-destructive-foreground'
                   )}
                 >
-                  <div className="whitespace-pre-wrap">{m.content}</div>
+                  <div className="whitespace-pre-wrap text-sm">{m.content}</div>
                   {m.competency && m.role === 'user' && (
-                    <div className="mt-1 text-xs opacity-80">
+                    <div className="mt-1 text-xs opacity-70">
                       Competency: {m.competency}
                     </div>
                   )}
                 </div>
               </div>
             ))}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} /> {/* For scrolling to bottom */}
           </div>
         )}
       </div>
@@ -572,17 +568,17 @@ const handleSendMessage = async () => {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`Describe your achievement for ${selectedCompetency}...`}
+          placeholder={isLoading ? "Assistant is typing..." : `Describe your achievement for ${selectedCompetency}...`}
           className={cn(
-            'min-h-[80px] w-full resize-none rounded-md border border-ring bg-background px-3 py-2 pr-10 text-foreground shadow-sm',
+            'min-h-[80px] w-full resize-none rounded-md border border-input bg-background p-3 pr-20 text-sm text-foreground shadow-sm', // Adjusted padding
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
             isMobile ? 'text-base' : 'text-sm'
           )}
           disabled={isLoading}
+          rows={isMobile ? 2 : 3} // Adjust rows for mobile
         />
 
-        {/* Speech to text button */}
-        <div className="absolute bottom-2 right-12">
+        <div className="absolute bottom-2.5 right-11 flex items-center"> {/* Adjusted positioning */}
           {isMobile ? (
             <MobileSpeechButton onTranscript={handleSpeechTranscript} />
           ) : (
@@ -590,29 +586,25 @@ const handleSendMessage = async () => {
           )}
         </div>
 
-        {/* Send button */}
-        <button
+        <Button
           onClick={handleSendMessage}
           disabled={!input.trim() || isLoading}
           aria-label="Send message"
-          className={cn(
-            'absolute bottom-2 right-2 rounded-md p-2 text-foreground transition-colors',
-            'hover:bg-primary hover:text-primary-foreground',
-            'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1',
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-foreground'
-          )}
+          size="icon" // Use icon size for a more compact button
+          className="absolute bottom-2 right-2" // Adjusted positioning
         >
           {isLoading ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
             <ArrowRightCircle className="h-5 w-5" />
           )}
-        </button>
+        </Button>
       </div>
 
-      {/* Error message */}
       {errorMessage && (
-        <div className="mt-2 text-sm text-destructive">{errorMessage}</div>
+        <div className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-sm text-destructive">
+          {errorMessage}
+        </div>
       )}
     </div>
   );

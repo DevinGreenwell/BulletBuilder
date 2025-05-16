@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button";
 import { useSession } from 'next-auth/react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ClipboardCopy } from 'lucide-react'; // Import clipboard icon
+import { ClipboardCopy } from 'lucide-react';
 
-// Consistent Bullet interface (matches BulletEditor)
+// Consistent Bullet interface
 interface Bullet {
   id: string;
   competency: string;
   content: string;
   isApplied: boolean;
   category: string;
-  createdAt?: number; // Added for consistency
-  source?: string;   // Added for consistency
+  createdAt?: number; 
+  source?: string;   
 }
 
 interface OERPreviewProps {
@@ -46,11 +46,10 @@ interface StructuredContent {
 }
 
 // Type for the data payload sent to/from the API
-// 'content' can be the new structured object or, for backward compatibility during loading, an array of bullets.
 type WorkPayload = {
   id?: string;
   userId: string;
-  content: StructuredContent | Bullet[]; // Updated content type
+  content: StructuredContent | Bullet[]; 
 };
 
 
@@ -62,7 +61,6 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [copiedCategory, setCopiedCategory] = useState<string | null>(null);
 
-  // State for evaluation header data
   const [evaluationData, setEvaluationData] = useState({
     startDate: '',
     endDate: '',
@@ -81,73 +79,49 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
   useEffect(() => {
     if (status === 'loading') return;
     
-    if (status === 'authenticated' && (session?.user as { id: string })?.id) {
+    if (status === 'authenticated' && session?.user?.id) {
       setIsLoading(true);
       
-      fetch('/api/work') // Assuming this API returns WorkPayload compatible data
+      fetch('/api/work') 
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch user data');
           return res.json();
         })
-        .then(apiData => { // Renamed to avoid confusion with component's 'data' state
-          // Assuming apiData is an array of work records, e.g., WorkPayload[]
+        .then(apiData => { 
           if (apiData && apiData.length > 0) {
-            const latestWork = apiData[0] as WorkPayload; // Assuming sorted by latest first
+            const latestWork = apiData[0] as WorkPayload; 
             setWorkId(latestWork.id);
             
             if (latestWork.content) {
-              // Check if content is in the new structured format
               if (typeof latestWork.content === 'object' && 'bullets' in latestWork.content && Array.isArray(latestWork.content.bullets)) {
                 const structuredContent = latestWork.content as StructuredContent;
                 setLocalBullets(structuredContent.bullets);
-                
-                if (structuredContent.evaluationData) {
-                  setEvaluationData(structuredContent.evaluationData);
-                }
-                if (structuredContent.bulletWeights) {
-                  setBulletWeights(structuredContent.bulletWeights);
-                }
-                if (structuredContent.summaries) {
-                  setSummaries(structuredContent.summaries);
-                }
+                if (structuredContent.evaluationData) setEvaluationData(structuredContent.evaluationData);
+                if (structuredContent.bulletWeights) setBulletWeights(structuredContent.bulletWeights);
+                if (structuredContent.summaries) setSummaries(structuredContent.summaries);
               } else if (Array.isArray(latestWork.content)) {
-                // Old format - content is directly the bullets array
                 setLocalBullets(latestWork.content as Bullet[]);
               }
             }
           } else {
-            // Initialize with prop bullets if no saved data
             setLocalBullets(propBullets);
           }
         })
         .catch(error => {
           console.error('Error loading work data:', error);
-          setLocalBullets(propBullets); // Fallback to props
+          setLocalBullets(propBullets); 
         })
         .finally(() => {
           setIsLoading(false);
         });
     } else {
-      // Not authenticated or no user ID, use prop bullets
       setLocalBullets(propBullets);
       setIsLoading(false);
     }
-  }, [propBullets, session, status]); // propBullets is used for initialization
+  }, [propBullets, session, status]);
 
-  // Auto-save data when changes occur
-  useEffect(() => {
-    // Prevent saving if still loading, not authenticated, or no session user ID
-    if (isLoading || status !== 'authenticated' || !session?.user?.id) return;
-    
-    const saveTimeout = setTimeout(() => {
-      saveWorkData();
-    }, 2000); // Debounce save
-    
-    return () => clearTimeout(saveTimeout);
-  }, [localBullets, evaluationData, bulletWeights, summaries, status, isLoading, session]); // Added isLoading and session to dependencies
-
-  // Function to save work data
-  const saveWorkData = async () => {
+  // Function to save work data, wrapped in useCallback
+  const saveWorkData = useCallback(async () => {
     if (status !== 'authenticated' || !session?.user?.id) {
       console.log("Save aborted: User not authenticated or no user ID.");
       return;
@@ -156,7 +130,6 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
     setSaveStatus('Saving...');
     
     try {
-      // Construct the structured content
       const structuredContentData: StructuredContent = {
         bullets: localBullets,
         evaluationData: evaluationData,
@@ -164,7 +137,6 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
         summaries: summaries,
       };
 
-      // Prepare the payload for the API
       const payload: WorkPayload = {
         userId: session.user.id,
         content: structuredContentData,
@@ -177,9 +149,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
       
       const response = await fetch('/api/work', {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       
@@ -195,7 +165,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
         throw new Error(errorData.error || `Failed to save data (status: ${response.status})`);
       }
       
-      const responseData = await response.json(); // Renamed to avoid conflict
+      const responseData = await response.json();
       
       if (!workId && responseData.id) {
         setWorkId(responseData.id);
@@ -206,10 +176,23 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
     } catch (error) {
       console.error('Error saving work data:', error);
       setSaveStatus('Failed to save');
-      // Consider providing more specific feedback to the user if possible
       setTimeout(() => setSaveStatus(null), 3000);
     }
-  };
+  // Dependencies for useCallback on saveWorkData
+  }, [status, session, localBullets, evaluationData, bulletWeights, summaries, workId]);
+
+
+  // Auto-save data when changes occur
+  useEffect(() => {
+    if (isLoading || status !== 'authenticated' || !session?.user?.id) return;
+    
+    const saveTimeout = setTimeout(() => {
+      saveWorkData(); // Call the memoized saveWorkData
+    }, 2000); 
+    
+    return () => clearTimeout(saveTimeout);
+  // Added saveWorkData to dependency array
+  }, [localBullets, evaluationData, bulletWeights, summaries, status, isLoading, session, saveWorkData]); 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -229,7 +212,6 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
     );
   };
 
-  // Use propBullets as a fallback if localBullets is empty, ensures appliedBullets always has a source.
   const appliedBullets = useMemo(() => 
     (localBullets.length > 0 ? localBullets : propBullets).filter(bullet => bullet.isApplied), 
     [localBullets, propBullets]
@@ -242,7 +224,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
 
     appliedBullets.forEach(bullet => {
         if (currentWeights[bullet.id] === undefined) {
-            currentWeights[bullet.id] = ''; // Initialize weight if not present
+            currentWeights[bullet.id] = ''; 
         }
     });
 
@@ -262,14 +244,11 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
           if (hasEnteredWeight && sum !== 100) {
             errors[category] = `Weights must sum to 100% (currently ${sum}%)`;
           } else {
-             delete errors[category]; // Clear error if sum is 100 or no weights entered
+             delete errors[category]; 
           }
         }
     });
 
-    // Schedule state updates to avoid direct update during render phase
-    // This is a common pattern to handle derived state that also needs to update other state.
-    // However, ideally, this logic might be better placed in useEffect hooks.
     if (JSON.stringify(errors) !== JSON.stringify(weightErrors)) {
          setTimeout(() => setWeightErrors(errors), 0);
     }
@@ -278,7 +257,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
     }
 
     return groups;
-  }, [appliedBullets, bulletWeights, weightErrors]); // weightErrors is included to re-evaluate if errors change externally, though it's set here.
+  }, [appliedBullets, bulletWeights, weightErrors]); 
 
   const handleWeightChange = (bulletId: string, value: string) => {
       const numericValue = parseInt(value, 10);
@@ -295,17 +274,17 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
     }));
 
     const currentSum = bulletsWithParsedWeights.reduce((acc, b) => acc + b.weight, 0);
-    if (currentSum !== 100 && categoryBullets.some(b => b.weight !== '')) { // Only enforce if some weights are entered
+    if (currentSum !== 100 && categoryBullets.some(b => b.weight !== '')) { 
         alert(`Cannot summarize "${category}". Please ensure weights sum to 100% or are all empty.`);
         return;
     }
 
     setLoadingSummaries(prev => ({ ...prev, [category]: true }));
-    setSummaries(prev => ({ ...prev, [category]: '' })); // Clear previous summary
+    setSummaries(prev => ({ ...prev, [category]: '' })); 
 
     try {
         const payload = {
-            bullets: bulletsWithParsedWeights.filter(b => b.weight > 0), // Only send bullets with weight
+            bullets: bulletsWithParsedWeights.filter(b => b.weight > 0), 
             categoryName: category,
             rankCategory,
             rank,
@@ -321,8 +300,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
 
         if (response.ok && data.success) {
             setSummaries(prev => ({ ...prev, [category]: data.summary }));
-            // Call saveWorkData after a successful summary to persist it
-            saveWorkData(); 
+            saveWorkData(); // Call memoized saveWorkData
         } else {
             const errorMsg = `Error: ${data.error || 'Failed to summarize category'}`;
             setSummaries(prev => ({ ...prev, [category]: errorMsg }));
@@ -336,7 +314,8 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
     } finally {
         setLoadingSummaries(prev => ({ ...prev, [category]: false }));
     }
-  }, [rankCategory, rank, saveWorkData]); // saveWorkData is a dependency
+  // Added saveWorkData to dependency array
+  }, [rankCategory, rank, saveWorkData]); 
 
  const generateReportDocument = async () => {
   if (!evaluationData.officerName || !evaluationData.startDate || !evaluationData.endDate) {
@@ -360,10 +339,8 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
         position: evaluationData.position,
         startDate: evaluationData.startDate,
         endDate: evaluationData.endDate,
-        // Pass the full structured content for the report generation
-        // The API can then extract bullets, summaries, etc. as needed
         structuredContent: { 
-          bullets: appliedBullets, // Or localBullets if all should be considered
+          bullets: appliedBullets, 
           evaluationData: evaluationData,
           bulletWeights: bulletWeights,
           summaries: summaries 
@@ -413,11 +390,10 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
   const { reportTitle, evaluationCategories } = useMemo(() => {
      const officerTitle = 'Officer Evaluation Report';
      const officerCategories = ['Performance of Duties', 'Leadership Skills', 'Personal and Professional Qualities'];
-     const enlistedCategories = ['Military', 'Performance', 'Professional Qualities', 'Leadership']; // Define these as needed
+     const enlistedCategories = ['Military', 'Performance', 'Professional Qualities', 'Leadership']; 
      const rankTitles: Record<string, string> = {
         'E4': 'Third Class Petty Officer', 'E5': 'Second Class Petty Officer',
         'E6': 'First Class Petty Officer', 'E7': 'Chief Petty Officer', 'E8': 'Senior Chief Petty Officer',
-        // Add other E-ranks as needed
       };
      const enlistedTitle = `${rankTitles[rank] || 'Enlisted'} Evaluation Report`;
 
@@ -426,7 +402,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
         : { reportTitle: enlistedTitle, evaluationCategories: enlistedCategories };
   }, [rankCategory, rank]);
 
-  if (isLoading && status === 'loading') { // Show skeleton only during initial auth and data load
+  if (isLoading && status === 'loading') { 
     return (
       <div className="max-w-4xl mx-auto p-6">
         <Skeleton className="h-8 w-1/3 mb-6" />
@@ -439,7 +415,6 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
     );
   }
 
-  // Main component UI
   return (
     <div className="max-w-4xl mx-auto p-4">
       <div className="flex justify-between items-center mb-4">
@@ -455,7 +430,6 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
         )}
       </div>
 
-      {/* Evaluation Info Form */}
       <div className="bg-card border border-border rounded-md p-6 mb-6 shadow">
         <h3 className="text-lg font-semibold mb-4 text-card-foreground">Report Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -466,7 +440,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
             <Input 
             id="officerName" 
             name="officerName"
-            className="bg-background border-input text-foreground" // Simplified classes, Tailwind handles dark mode
+            className="bg-background border-input text-foreground" 
             value={evaluationData.officerName} 
             onChange={handleInputChange} 
             required />
@@ -516,11 +490,11 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
         </div>
       </div>
 
-      {/* Render Sections by Category */}
-      {appliedBullets.length === 0 && !isLoading ? ( // Show only if not loading and no bullets
+      {appliedBullets.length === 0 && !isLoading ? ( 
           <div className="text-center p-6 bg-card border border-border rounded-md shadow">
               <p className="text-destructive-foreground">No bullets have been applied yet.</p>
-              <p className="text-sm text-muted-foreground mt-1">Go to the 'Manage Bullets' tab to apply bullets first.</p>
+              {/* Fixed unescaped apostrophes here */}
+              <p className="text-sm text-muted-foreground mt-1">Go to the &apos;Manage Bullets&apos; tab to apply bullets first.</p>
           </div>
       ) : (
           evaluationCategories.map(category => {
@@ -531,7 +505,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
               const isLoadingSummary = loadingSummaries[category];
               const summary = summaries[category];
               const currentWeightSum = categoryBullets.reduce((acc, b) => acc + (parseInt(b.weight as string, 10) || 0), 0);
-              const isWeightValidForSummarize = !error || categoryBullets.every(b => b.weight === '' || b.weight === '0'); // Valid if no error OR all weights are empty/zero
+              const isWeightValidForSummarize = !error || categoryBullets.every(b => b.weight === '' || b.weight === '0'); 
               const isCopied = copiedCategory === category;
 
               return (
@@ -620,7 +594,7 @@ export default function OERPreview({ bullets: propBullets = [], rankCategory = '
         <Button
             onClick={generateReportDocument}
             disabled={isGeneratingDoc || appliedBullets.length === 0 || Object.values(weightErrors).some(e => !!e)}
-            className="px-4 py-2" // Standard button padding
+            className="px-4 py-2" 
         >
             {isGeneratingDoc ? (
               <> 
