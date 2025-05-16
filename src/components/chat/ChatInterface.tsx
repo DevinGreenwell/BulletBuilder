@@ -8,9 +8,9 @@ import {
   useMemo,
   KeyboardEvent,
 } from 'react';
-// Removed ArrowRightSquare as it was unused
-import { ArrowRightCircle, Loader2 } from 'lucide-react';
+import { ArrowRightCircle, Loader2 } from 'lucide-react'; // ArrowRightSquare was removed as unused
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button'; // Added missing Button import
 import SpeechToText from '@/components/speech/SpeechToText';
 import MobileSpeechButton from '@/components/speech/MobileSpeechButton';
 
@@ -253,7 +253,7 @@ export default function ChatInterface({
         setSelectedCompetency(currentCompetencies[0]);
       }
     }
-  }, [getCompetencies, selectedCompetency]); // Removed rank and rankCategory as getCompetencies already depends on them
+  }, [getCompetencies, selectedCompetency]);
 
   /* scroll to bottom on new messages */
   useEffect(() => {
@@ -276,7 +276,6 @@ export default function ChatInterface({
       'Bullet:'
     ];
 
-    // Avoid classifying questions as bullets unless they explicitly contain "bullet"
     if (text.includes('?') && !text.toLowerCase().includes('bullet')) {
       return { isBullet: false, bulletContent: '' };
     }
@@ -284,16 +283,14 @@ export default function ChatInterface({
     for (const prefix of exactPrefixes) {
       const lowerText = text.toLowerCase();
       const lowerPrefix = prefix.toLowerCase();
-      if (lowerText.startsWith(lowerPrefix)) { // Check if text STARTS with prefix for more accuracy
+      if (lowerText.startsWith(lowerPrefix)) { 
         let bulletText = text.substring(prefix.length).trim();
         
-        // If there's a paragraph break, only take content before it
         const paragraphBreakIndex = bulletText.indexOf('\n\n');
         if (paragraphBreakIndex !== -1) {
           bulletText = bulletText.substring(0, paragraphBreakIndex).trim();
         }
         
-        // Further cleanup: remove common conversational closers if they appear after the bullet
         const closers = ["Is there anything else I can help you with?", "Let me know if you need further adjustments."];
         for (const closer of closers) {
           if (bulletText.endsWith(closer)) {
@@ -320,7 +317,7 @@ export default function ChatInterface({
     
     setTimeout(() => {
       inputRef.current?.focus();
-    }, 100); // Ensure focus happens after state update
+    }, 100); 
   }, []);
 
   /* ───────────  API call  ─────────── */
@@ -328,7 +325,7 @@ export default function ChatInterface({
     const cleanInput = input.trim();
     if (!cleanInput || !selectedCompetency || isLoading) return;
 
-    setErrorMessage(null); // Clear previous errors
+    setErrorMessage(null); 
 
     const userMsg: DisplayMessage = {
       id: msgId(),
@@ -338,12 +335,11 @@ export default function ChatInterface({
       timestamp: Date.now(),
     };
     setDisplayMessages(prev => [...prev, userMsg]);
-    setInput(''); // Clear input after sending
+    setInput(''); 
     setIsLoading(true);
 
-    // Prepare history, excluding any previous error messages from the assistant
     const historyForApi: ApiMessage[] = displayMessages
-      .filter(m => m.type !== 'error') // Exclude previous error messages
+      .filter(m => m.type !== 'error') 
       .map(m => ({ role: m.role, content: m.content }));
     historyForApi.push({ role: userMsg.role, content: userMsg.content });
 
@@ -397,7 +393,6 @@ export default function ChatInterface({
       
       const { isBullet, bulletContent } = detectBullet(assistantResponseText);
       let finalContent = assistantResponseText;
-      // Changed 'let msgType' to 'const msgType'
       const msgType: DisplayMessage['type'] = isBullet ? 'bullet' : 'question';
 
       if (isBullet && bulletContent && bulletContent.length > 10 && onBulletGenerated) {
@@ -409,12 +404,10 @@ export default function ChatInterface({
           isApplied: false,
           category: getCategoryFromCompetency(selectedCompetency),
           createdAt: Date.now(),
-          source: `chat_${userMsg.id}`, // Link bullet source to user message ID
+          source: `chat_${userMsg.id}`, 
         };
         
         onBulletGenerated(bulletObj);
-        // Use the original assistant response text, but add a notice.
-        // The bulletContent is what's saved, assistantResponseText is what's displayed.
         finalContent = wrapWithNotice(assistantResponseText); 
       }
       
@@ -431,13 +424,13 @@ export default function ChatInterface({
     } catch (err) {
       console.error('Chat error:', err);
       const errorMsg = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setErrorMessage(errorMsg); // Display error message to user
+      setErrorMessage(errorMsg); 
       setDisplayMessages(prev => [
         ...prev,
         {
           id: msgId(),
           role: 'assistant',
-          content: `Error: ${errorMsg}`, // Display a user-friendly error in chat
+          content: `Error: ${errorMsg}`, 
           timestamp: Date.now(),
           type: 'error',
         },
@@ -452,19 +445,17 @@ export default function ChatInterface({
     if (window.confirm('Are you sure you want to clear this conversation?')) {
       setDisplayMessages([]);
       setInput('');
-      setErrorMessage(null); // Clear any error messages
+      setErrorMessage(null); 
     }
   };
 
   /* ───────────  keydown helper  ─────────── */
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     const isMobileDevice = typeof window !== 'undefined' && window.innerWidth <= 768;
-    // Ctrl+Enter or Cmd+Enter for all devices
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       handleSendMessage();
     } 
-    // Enter key for non-mobile, if not loading and shift key is not pressed
     else if (!isMobileDevice && e.key === 'Enter' && !e.shiftKey && !isLoading) {
       e.preventDefault();
       handleSendMessage();
@@ -480,7 +471,7 @@ export default function ChatInterface({
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex-1">
           <label
-            htmlFor="competency-select" // Changed id for clarity
+            htmlFor="competency-select" 
             className="mb-1 block text-sm font-medium text-card-foreground"
           >
             Select Competency Area:
@@ -490,19 +481,19 @@ export default function ChatInterface({
             value={selectedCompetency}
             onChange={e => setSelectedCompetency(e.target.value)}
             className={cn(
-              'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm', // Adjusted padding and text size
+              'w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm', 
               'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
             )}
           >
             {getCompetencies().map(c => (
-              <option key={c} value={c}>{c}</option> // Added value attribute
+              <option key={c} value={c}>{c}</option> 
             ))}
           </select>
         </div>
 
         {displayMessages.length > 0 && (
           <Button
-            variant="ghost" // Use ghost variant for a less intrusive button
+            variant="ghost" 
             size="sm"
             onClick={handleReset}
             className="text-destructive hover:text-destructive focus:ring-destructive"
@@ -515,8 +506,8 @@ export default function ChatInterface({
       {/* chat history */}
       <div
         className={cn(
-          'mb-4 flex-1 overflow-y-auto rounded-md border border-border bg-card p-4 text-card-foreground shadow-inner', // Use card as background for chat history
-          isMobile ? 'min-h-[200px] max-h-[calc(100vh-350px)]' : 'min-h-[300px] max-h-[calc(100vh-400px)]' // Dynamic max height
+          'mb-4 flex-1 overflow-y-auto rounded-md border border-border bg-card p-4 text-card-foreground shadow-inner', 
+          isMobile ? 'min-h-[200px] max-h-[calc(100vh-350px)]' : 'min-h-[300px] max-h-[calc(100vh-400px)]' 
         )}
       >
         {displayMessages.length === 0 ? (
@@ -540,10 +531,10 @@ export default function ChatInterface({
               >
                 <div
                   className={cn(
-                    'max-w-[85%] rounded-lg px-3 py-2 shadow-sm', // Adjusted padding
+                    'max-w-[85%] rounded-lg px-3 py-2 shadow-sm', 
                     m.role === 'user'
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground', // Use muted for assistant
+                      : 'bg-muted text-muted-foreground', 
                     m.type === 'error' && 'bg-destructive text-destructive-foreground'
                   )}
                 >
@@ -556,7 +547,7 @@ export default function ChatInterface({
                 </div>
               </div>
             ))}
-            <div ref={messagesEndRef} /> {/* For scrolling to bottom */}
+            <div ref={messagesEndRef} /> 
           </div>
         )}
       </div>
@@ -570,15 +561,15 @@ export default function ChatInterface({
           onKeyDown={handleKeyDown}
           placeholder={isLoading ? "Assistant is typing..." : `Describe your achievement for ${selectedCompetency}...`}
           className={cn(
-            'min-h-[80px] w-full resize-none rounded-md border border-input bg-background p-3 pr-20 text-sm text-foreground shadow-sm', // Adjusted padding
+            'min-h-[80px] w-full resize-none rounded-md border border-input bg-background p-3 pr-20 text-sm text-foreground shadow-sm', 
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
             isMobile ? 'text-base' : 'text-sm'
           )}
           disabled={isLoading}
-          rows={isMobile ? 2 : 3} // Adjust rows for mobile
+          rows={isMobile ? 2 : 3} 
         />
 
-        <div className="absolute bottom-2.5 right-11 flex items-center"> {/* Adjusted positioning */}
+        <div className="absolute bottom-2.5 right-11 flex items-center"> 
           {isMobile ? (
             <MobileSpeechButton onTranscript={handleSpeechTranscript} />
           ) : (
@@ -590,8 +581,8 @@ export default function ChatInterface({
           onClick={handleSendMessage}
           disabled={!input.trim() || isLoading}
           aria-label="Send message"
-          size="icon" // Use icon size for a more compact button
-          className="absolute bottom-2 right-2" // Adjusted positioning
+          size="icon" 
+          className="absolute bottom-2 right-2" 
         >
           {isLoading ? (
             <Loader2 className="h-5 w-5 animate-spin" />
