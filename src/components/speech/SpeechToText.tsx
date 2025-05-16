@@ -79,11 +79,9 @@ interface CustomSpeechRecognitionConstructor {
 // Extend the global Window interface ONLY for custom properties
 declare global {
   interface Window {
-    // SpeechRecognition and webkitSpeechRecognition are assumed to be provided
-    // by the browser's environment and TypeScript's lib.dom.d.ts.
-    // We will cast them to our CustomSpeechRecognitionConstructor at the point of use.
-    SpeechRecognition?: any; // Keep as any or use a very generic type if needed for existence check
-    webkitSpeechRecognition?: any; // Keep as any or use a very generic type
+    // Do NOT re-declare SpeechRecognition or webkitSpeechRecognition here
+    // if they are provided by TypeScript's lib.dom.d.ts.
+    // We will rely on the global types and cast at the point of use.
     currentRecognition?: CustomSpeechRecognitionInstance; // Our custom property, typed specifically
   }
 }
@@ -109,8 +107,9 @@ export default function SpeechToText({
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   useEffect(() => {
+    // Check for SpeechRecognition API existence
     const browserSupportsSpeech = typeof window !== 'undefined' && 
-                                  (window.SpeechRecognition || window.webkitSpeechRecognition);
+                                  ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
     if (!browserSupportsSpeech) {
       setIsSpeechSupported(false);
       setError('Speech recognition is not supported in this browser.');
@@ -127,21 +126,21 @@ export default function SpeechToText({
 
     setError(null);
     setIsListening(true);
-    setTranscript(''); // Clear previous transcript
+    setTranscript(''); 
     if (showFeedback) {
       setShowFeedbackModal(true);
     }
 
-    // Cast to our custom constructor type.
-    // The `any` cast for window.SpeechRecognition in global declaration helps avoid conflicts,
-    // while this explicit cast ensures we use our detailed types for the instance.
-    const SpeechRecognitionAPIConstructor = (window.SpeechRecognition || window.webkitSpeechRecognition) as CustomSpeechRecognitionConstructor | undefined;
+    // Access the API from window and cast to our custom constructor type.
+    // This assumes that if SpeechRecognition exists, it's compatible with our CustomSpeechRecognitionConstructor.
+    const SpeechRecognitionAPIConstructor = 
+        ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) as CustomSpeechRecognitionConstructor | undefined;
     
     if (!SpeechRecognitionAPIConstructor) {
       setError('Speech recognition API could not be initialized.');
       setIsListening(false);
       setShowFeedbackModal(false);
-      console.error('SpeechRecognitionAPIConstructor is undefined.');
+      console.error('SpeechRecognitionAPIConstructor is undefined after check.');
       return;
     }
     
@@ -176,29 +175,24 @@ export default function SpeechToText({
         setError(`Recognition error: ${event.error} - ${event.message || 'No additional message.'}`);
         setIsListening(false);
         setShowFeedbackModal(false);
-        if (window.currentRecognition === recognition) { // Clean up if this was the active instance
+        if (window.currentRecognition === recognition) {
             window.currentRecognition = undefined;
         }
       };
 
       recognition.onend = () => {
         console.log('Speech recognition ended.');
-        // Only process transcript if this instance was the one actively being managed
-        // and wasn't stopped prematurely by an error that already cleared currentRecognition
         if (window.currentRecognition === recognition) { 
-            setIsListening(false); // Ensure UI updates
+            setIsListening(false); 
             setShowFeedbackModal(false);
-            // Use a functional update for setTranscript to get the latest value
             setTranscript(currentTranscriptValue => {
               if (currentTranscriptValue.trim()) {
                 onTranscript(currentTranscriptValue.trim());
               }
-              return ''; // Clear transcript after processing
+              return ''; 
             });
-            window.currentRecognition = undefined; // Clean up the global reference
+            window.currentRecognition = undefined; 
         } else if (!isListening && window.currentRecognition === undefined) {
-            // If isListening is already false (e.g. manual stop) and currentRecognition is cleared,
-            // ensure modal is hidden.
             setShowFeedbackModal(false);
         }
       };
@@ -213,18 +207,14 @@ export default function SpeechToText({
       setIsListening(false);
       setShowFeedbackModal(false);
     }
-  }, [isSpeechSupported, onTranscript, showFeedback]); // isListening and transcript removed to prevent re-creation issues
+  }, [isSpeechSupported, onTranscript, showFeedback]);
 
   const stopListening = useCallback(() => {
     if (window.currentRecognition) {
       console.log('Manually stopping speech recognition.');
-      // Setting isListening to false here ensures that onend handler knows it was a manual stop
-      // if it checks isListening state (though relying on window.currentRecognition is more direct).
       setIsListening(false); 
-      window.currentRecognition.stop(); // This will trigger the 'onend' event
-      // Transcript processing is now primarily in onend
+      window.currentRecognition.stop(); 
     }
-    // Ensure UI reflects stop immediately even if onend is delayed
     setShowFeedbackModal(false); 
   }, []);
 
