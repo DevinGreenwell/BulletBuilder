@@ -24,7 +24,7 @@ interface StructuredContentWithBullets {
   // other properties might exist but are not relevant for this check
 }
 
-function isStructuredContentWithBullets(content: any): content is StructuredContentWithBullets {
+function isStructuredContentWithBullets(content: unknown): content is StructuredContentWithBullets {
   return typeof content === 'object' && content !== null && 'bullets' in content && Array.isArray(content.bullets);
 }
 
