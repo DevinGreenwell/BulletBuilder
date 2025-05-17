@@ -1,11 +1,8 @@
 'use client';
 
-// useMemo was added previously.
-// Input, Textarea, Select, cn were removed as they were unused.
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'; 
 import { getWork, saveWork, WorkRecord } from '@/lib/work';
 import { Button } from '@/components/ui/button';
-// Removed unused lucide icon ChevronUp
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 
 interface Bullet {
@@ -18,10 +15,8 @@ interface Bullet {
   source?: string;
 }
 
-// Type guard for structured content that might contain bullets
 interface StructuredContentWithBullets {
   bullets: Bullet[];
-  // other properties might exist but are not relevant for this check
 }
 
 function isStructuredContentWithBullets(content: unknown): content is StructuredContentWithBullets {
@@ -35,8 +30,6 @@ interface BulletEditorProps {
 }
 
 export default function BulletEditor({ initialBullets = [], onBulletsChanged }: BulletEditorProps) {
-  console.log("BulletEditor: received initialBullets:", initialBullets);
-  
   const [bullets, setBullets] = useState<Bullet[]>(initialBullets);
   const [showNewBulletForm, setShowNewBulletForm] = useState(false);
   const [newBullet, setNewBullet] = useState({
@@ -50,7 +43,6 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   
-  // competencyOptions is stable as it's defined as a const object literal within the component.
   const competencyOptions: Record<string, string[]> = {
     'Performance of Duties': [
       'Planning & Preparedness', 'Using Resources', 'Results/Effectiveness',
@@ -68,16 +60,12 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   
   const categories = Object.keys(competencyOptions);
 
-  // Effect to update local bullets if the initialBullets prop changes.
-  // Added 'bullets' to dependency array as it's used in the condition.
   useEffect(() => {
     if (initialBullets && JSON.stringify(initialBullets) !== JSON.stringify(bullets)) {
-      console.log("BulletEditor: initialBullets prop changed, updating local state:", initialBullets);
       setBullets(initialBullets);
     }
   }, [initialBullets, bullets]); 
 
-  // Load persisted work only on initial mount if no initialBullets are provided.
   useEffect(() => {
     if ((!initialBullets || initialBullets.length === 0) && typeof window !== 'undefined') {
       getWork()
@@ -85,16 +73,12 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
           if (records.length > 0 && records[0].content) {
             const savedContent = records[0].content;
             let loadedBullets: Bullet[] = [];
-
-            // Use type guard to safely access bullets property
             if (isStructuredContentWithBullets(savedContent)) {
                 loadedBullets = savedContent.bullets;
             } else if (Array.isArray(savedContent)) { 
-                loadedBullets = savedContent as Bullet[]; // Cast if it's directly an array
+                loadedBullets = savedContent as Bullet[];
             }
-            
             if (loadedBullets.length > 0) {
-                console.log("BulletEditor: Loaded bullets from storage:", loadedBullets);
                 setBullets(loadedBullets);
                 onBulletsChanged?.(loadedBullets); 
             }
@@ -102,22 +86,29 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
         })
         .catch((err) => console.error('Failed to load bullets from storage:', err));
     }
-  // onBulletsChanged is a function, if it can change, it should be in deps.
-  // Assuming it's stable or memoized in the parent.
-  // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [initialBullets, onBulletsChanged]); // Added onBulletsChanged as it's called. initialBullets ensures re-check if it becomes empty.
+  }, [initialBullets, onBulletsChanged]);
 
-  // Debounced save for bullets
   useEffect(() => {
-    if (JSON.stringify(bullets) === JSON.stringify(initialBullets) && initialBullets.length > 0) {
+    // Prevent saving if bullets are identical to initialBullets and initialBullets is not empty
+    // This avoids saving an empty array if initialBullets was empty and then populated by the load effect.
+    if (initialBullets.length > 0 && JSON.stringify(bullets) === JSON.stringify(initialBullets)) {
+        // console.log("BulletEditor: Debounced save skipped, bullets match non-empty initialBullets.");
+        return;
+    }
+     // Also prevent saving if bullets are empty and initialBullets were also empty (or not provided)
+    if (bullets.length === 0 && (!initialBullets || initialBullets.length === 0)) {
+        // console.log("BulletEditor: Debounced save skipped, bullets and initialBullets are empty.");
         return;
     }
 
+
     const handler = setTimeout(() => {
-      console.log("BulletEditor: Saving bullets due to change (debounced):", bullets);
-      saveWork({ content: bullets }) 
-        .catch((err) => console.error('Failed to save bullets (debounced):', err));
+      console.log("BulletEditor: Debounced: Calling onBulletsChanged with:", bullets);
       onBulletsChanged?.(bullets); 
+      // Assuming saveWork is for persisting to a backend/localStorage and might not be directly
+      // related to the UI update propagation for OERPreview, but keeping it.
+      saveWork({ content: bullets }) 
+        .catch((err) => console.error('BulletEditor: Failed to save bullets (debounced):', err));
     }, 1000); 
 
     return () => {
@@ -152,17 +143,26 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   };
 
   const handleEditSave = (id: string, newContent: string) => {
-    handleChange(bullets.map((b) => (b.id === id ? { ...b, content: newContent } : b)));
+    handleChange(bullets.map((b: Bullet) => (b.id === id ? { ...b, content: newContent } : b)));
   };
 
   const handleDelete = (id: string) => {
-    handleChange(bullets.filter((b) => b.id !== id));
+    handleChange(bullets.filter((b: Bullet) => b.id !== id));
   };
 
   const handleToggleApply = (id: string) => {
-    handleChange(
-      bullets.map((b) => (b.id === id ? { ...b, isApplied: !b.isApplied } : b))
+    // Log the state *before* the change for comparison
+    const bulletToToggle = bullets.find((b: Bullet) => b.id === id);
+    console.log(`BulletEditor: handleToggleApply called for ID: ${id}. Current isApplied: ${bulletToToggle?.isApplied}`);
+
+    const updatedBullets = bullets.map((b: Bullet) => 
+      b.id === id ? { ...b, isApplied: !b.isApplied } : b
     );
+    // Log the bullet that was toggled to see its new state
+    const toggledBullet = updatedBullets.find((b: Bullet) => b.id === id);
+    console.log(`BulletEditor: Bullet ID ${id} new isApplied state: ${toggledBullet?.isApplied}`);
+    
+    handleChange(updatedBullets); // This will trigger the useEffect for onBulletsChanged
   };
   
   const generateBulletId = () => `bullet_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -199,14 +199,14 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   };
 
   const toggleCategoryCollapse = (category: string) => {
-    setCollapsedCategories(prev => ({
+    setCollapsedCategories((prev: Record<string, boolean>) => ({
       ...prev,
       [category]: !prev[category]
     }));
   };
 
   const moveBulletUp = (bulletId: string) => {
-    const index = bullets.findIndex(b => b.id === bulletId);
+    const index = bullets.findIndex((b: Bullet) => b.id === bulletId);
     if (index <= 0) return;
     
     const newBullets = [...bullets];
@@ -223,8 +223,6 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     handleChange(newBullets);
   };
   
-  // Wrapped getCategoryFromCompetency in useCallback as it's a dependency of useMemo
-  // and depends on competencyOptions (which is stable in this component's lifecycle).
   const getCategoryFromCompetency = useCallback((competency: string): string => {
     for (const [category, competencies] of Object.entries(competencyOptions)) {
       if (competencies.includes(competency)) {
@@ -232,9 +230,8 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       }
     }
     return 'Other'; 
-  }, [competencyOptions]); // competencyOptions is stable
+  }, [competencyOptions]);
 
-  // Group bullets by category. Added getCategoryFromCompetency to dependencies.
   const groupedBullets = useMemo(() => {
     return bullets.reduce((acc, bullet) => {
       const category = bullet.category || getCategoryFromCompetency(bullet.competency);
@@ -243,10 +240,8 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
     }, {} as Record<string, Bullet[]>);
   }, [bullets, getCategoryFromCompetency]); 
   
-  // Get sorted category keys for rendering.
-  // Moved categoryOrder inside useMemo to prevent it from changing on every render.
   const sortedCategoryKeys = useMemo(() => {
-    const categoryOrder = [ // Defined inside useMemo
+    const categoryOrder = [ 
       'Performance of Duties',
       'Leadership Skills',
       'Personal and Professional Qualities',
@@ -260,7 +255,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       if (indexB === -1) return -1;
       return indexA - indexB;
     });
-  }, [groupedBullets]); // categoryOrder is now stable within this useMemo
+  }, [groupedBullets]);
 
 
   return (
