@@ -45,9 +45,8 @@ type SpeechRecognitionErrorCode =
   | 'language-not-supported';
 
 // Custom interface for the SpeechRecognition instance
-// Properties are based on the standard Web Speech API
 interface CustomSpeechRecognitionInstance extends EventTarget {
-  grammars: any; // Type as SpeechGrammarList if you use it, else 'any' is fine for now
+  grammars: any; 
   lang: string;
   continuous: boolean;
   interimResults: boolean;
@@ -76,14 +75,13 @@ interface CustomSpeechRecognitionConstructor {
   new (): CustomSpeechRecognitionInstance;
 }
 
-// Extend the global Window interface ONLY for custom properties
+// Extend the global Window interface ONLY for custom properties.
+// Do NOT re-declare standard browser APIs like SpeechRecognition here.
 declare global {
   interface Window {
-    // These are standard browser APIs. Rely on TypeScript's lib.dom.d.ts for their base types.
-    // We will cast to our more specific custom types at the point of use if necessary.
-    SpeechRecognition?: { new(): any }; // Generic constructor signature for existence check
-    webkitSpeechRecognition?: { new(): any }; // Generic constructor signature for existence check
-    currentRecognition?: CustomSpeechRecognitionInstance; // Our custom property
+    currentRecognition?: CustomSpeechRecognitionInstance; // Our application-specific property
+    // SpeechRecognition and webkitSpeechRecognition are assumed to be part of the global scope
+    // as provided by lib.dom.d.ts or the browser environment.
   }
 }
 // ───────────────────────── END OF TYPE DEFINITIONS ─────────────────────────
@@ -102,14 +100,15 @@ export default function SpeechToText({
   showFeedback = true
 }: SpeechToTextProps) {
   const [isListening, setIsListening] = useState(false);
-  const [isSpeechSupported, setIsSpeechSupported] = useState(true);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(true); // Assume supported until checked
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   useEffect(() => {
+    // Check for SpeechRecognition API existence by casting window to any for the property access
     const browserSupportsSpeech = typeof window !== 'undefined' && 
-                                  (window.SpeechRecognition || window.webkitSpeechRecognition);
+                                  ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
     if (!browserSupportsSpeech) {
       setIsSpeechSupported(false);
       setError('Speech recognition is not supported in this browser.');
@@ -120,28 +119,36 @@ export default function SpeechToText({
   const startListening = useCallback(() => {
     if (!isSpeechSupported) {
       setError('Speech recognition is not supported.');
+      console.warn('Attempted to start listening but speech is not supported.');
       return;
     }
 
     setError(null);
-    // Set isListening true here, so the dependency is up-to-date for the onend closure
     setIsListening(true); 
     setTranscript(''); 
     if (showFeedback) {
       setShowFeedbackModal(true);
     }
 
+    // Access the API from window (casting to any) and then cast to our custom constructor type.
     const SpeechRecognitionAPIConstructor = 
-        (window.SpeechRecognition || window.webkitSpeechRecognition) as CustomSpeechRecognitionConstructor | undefined;
+        ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) as CustomSpeechRecognitionConstructor | undefined;
     
     if (!SpeechRecognitionAPIConstructor) {
       setError('Speech recognition API could not be initialized.');
-      setIsListening(false); // Reset if constructor not found
+      setIsListening(false); 
       setShowFeedbackModal(false);
+      console.error('SpeechRecognitionAPIConstructor is undefined after existence check.');
       return;
     }
     
     try {
+      // Ensure previous recognition is stopped before starting a new one
+      if (window.currentRecognition) {
+        window.currentRecognition.abort();
+        window.currentRecognition = undefined;
+      }
+
       const recognition: CustomSpeechRecognitionInstance = new SpeechRecognitionAPIConstructor();
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -149,7 +156,7 @@ export default function SpeechToText({
 
       recognition.onstart = () => {
         console.log('Speech recognition started.');
-        // isListening is already set true before calling recognition.start()
+        // isListening is already set to true
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -178,21 +185,22 @@ export default function SpeechToText({
 
       recognition.onend = () => {
         console.log('Speech recognition ended.');
-        // The 'isListening' in this closure will be from the render `startListening` was created.
-        // This is why `isListening` is added as a dependency to `startListening`'s `useCallback`.
+        // Check if this instance was the one being managed and isListening was true
+        // This 'isListening' refers to the state when this onend handler was defined (closure)
         if (window.currentRecognition === recognition) { 
             setIsListening(false); 
             setShowFeedbackModal(false);
+            // Use functional update to get the latest transcript value for onTranscript
             setTranscript(currentTranscriptValue => {
               if (currentTranscriptValue.trim()) {
                 onTranscript(currentTranscriptValue.trim());
               }
-              return ''; 
+              return ''; // Clear transcript after processing
             });
             window.currentRecognition = undefined; 
-        } else if (!isListening && window.currentRecognition === undefined) {
-            // This condition checks the `isListening` from the closure.
-            // If `startListening`'s `useCallback` has `isListening` as a dep, this will be up-to-date.
+        }
+        // If isListening became false due to a manual stop that already cleared currentRecognition
+        else if (!isListening && window.currentRecognition === undefined) { 
             setShowFeedbackModal(false);
         }
       };
@@ -207,23 +215,25 @@ export default function SpeechToText({
       setIsListening(false);
       setShowFeedbackModal(false);
     }
-  // Added isListening to dependencies because the onend handler closes over it.
-  // onTranscript and showFeedback are props/stable values.
-  }, [isSpeechSupported, onTranscript, showFeedback, isListening]);
+  // isListening is a dependency because its value is used in the onend closure.
+  }, [isSpeechSupported, onTranscript, showFeedback, isListening]); 
 
   const stopListening = useCallback(() => {
     if (window.currentRecognition) {
       console.log('Manually stopping speech recognition.');
-      // isListening will be set to false by the onend handler if it's the current recognition
-      window.currentRecognition.stop(); 
+      // Setting isListening to false here is more for immediate UI feedback.
+      // The onend handler will also set it.
+      setIsListening(false); 
+      window.currentRecognition.stop(); // This will trigger the 'onend' event.
     } else {
-      // If no currentRecognition, ensure UI is updated
+      // If no currentRecognition (e.g., error occurred or not started), ensure UI is updated.
       setIsListening(false);
     }
     setShowFeedbackModal(false); 
-  }, []); // No direct dependencies that change frequently
+  }, []); 
 
   useEffect(() => {
+    // Cleanup function to abort recognition if component unmounts
     return () => {
       if (window.currentRecognition) {
         console.log('SpeechToText unmounting, aborting recognition.');
@@ -243,14 +253,14 @@ export default function SpeechToText({
         className={className}
         aria-label="Speech recognition not supported"
       >
-        <MicOff className="h-5 w-5" />
+        <MicOff className="h-5 w-5 text-muted-foreground" />
       </Button>
     );
   }
 
   return (
     <div className={`inline-flex items-center ${className}`}>
-      <div className={isListening ? 'ripple-container' : ''}>
+      <div className={isListening ? 'ripple-container' : ''}> {/* For visual feedback */}
         <Button
           variant={isListening ? "destructive" : "outline"}
           size="icon"
@@ -258,7 +268,7 @@ export default function SpeechToText({
           disabled={isDisabled}
           title={isListening ? "Stop recording" : "Start speech-to-text"}
           aria-label={isListening ? "Stop recording" : "Start speech-to-text"}
-          className={isListening ? 'recording-pulse' : ''}
+          className={isListening ? 'recording-pulse' : ''} // For visual feedback
         >
           {isListening ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -268,18 +278,20 @@ export default function SpeechToText({
         </Button>
       </div>
       
-      {error && !isListening && (
+      {error && !isListening && ( // Show error only if not actively listening
         <span className="ml-2 text-xs text-destructive animate-fade-in">
           {error}
         </span>
       )}
       
+      {/* Optional: Display interim transcript while listening, if not using modal */}
       {isListening && transcript && !showFeedback && !showFeedbackModal && (
         <span className="ml-2 text-xs italic text-muted-foreground max-w-xs truncate typing-animation">
           {transcript}
         </span>
       )}
       
+      {/* Speech feedback modal */}
       {showFeedbackModal && showFeedback && (
         <SpeechFeedback 
           isListening={isListening} 
