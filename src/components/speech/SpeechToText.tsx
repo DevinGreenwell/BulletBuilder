@@ -6,22 +6,25 @@ import { Button } from '@/components/ui/button';
 import SpeechFeedback from './SpeechFeedback';
 
 // ───────────────────────── TYPE DEFINITIONS FOR WEB SPEECH API ─────────────────────────
+// Based on standard Web Speech API specifications
+
 interface SpeechRecognitionEvent extends Event {
   readonly resultIndex: number;
   readonly results: SpeechRecognitionResultList;
+  // According to MDN, other properties like emma, interpretation, etc., can exist but are optional.
 }
 
 interface SpeechRecognitionResultList {
   readonly length: number;
   item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult; // Index signature for array-like access
 }
 
 interface SpeechRecognitionResult {
   readonly isFinal: boolean;
   readonly length: number;
   item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative; // Index signature
 }
 
 interface SpeechRecognitionAlternative {
@@ -29,11 +32,13 @@ interface SpeechRecognitionAlternative {
   readonly confidence: number;
 }
 
+// Defines the structure for errors from the SpeechRecognition API
 interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: SpeechRecognitionErrorCode | string;
-  readonly message: string;
+  readonly error: SpeechRecognitionErrorCode | string; // Can be a predefined code or a string message
+  readonly message: string; // Often contains a more descriptive message
 }
 
+// Standard error codes for SpeechRecognition
 type SpeechRecognitionErrorCode =
   | 'no-speech'
   | 'aborted'
@@ -44,19 +49,20 @@ type SpeechRecognitionErrorCode =
   | 'bad-grammar'
   | 'language-not-supported';
 
-// Custom interface for the SpeechRecognition instance
+// Custom interface for the SpeechRecognition instance to ensure all properties are typed
 interface CustomSpeechRecognitionInstance extends EventTarget {
-  grammars: any; 
+  grammars: any; // Type as SpeechGrammarList if used, 'any' for now if not.
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
-  serviceURI?: string;
+  serviceURI?: string; // Optional
 
   start(): void;
   stop(): void;
   abort(): void;
 
+  // Event handlers with typed events
   onaudiostart: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
   onaudioend: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
   onend: ((this: CustomSpeechRecognitionInstance, ev: Event) => void) | null;
@@ -75,13 +81,14 @@ interface CustomSpeechRecognitionConstructor {
   new (): CustomSpeechRecognitionInstance;
 }
 
-// Extend the global Window interface ONLY for custom properties.
-// Do NOT re-declare standard browser APIs like SpeechRecognition here.
+// Augment the global Window interface ONLY for custom, application-specific properties.
+// Standard browser APIs like SpeechRecognition should not be re-declared here
+// to avoid conflicts with TypeScript's built-in lib.dom.d.ts.
 declare global {
   interface Window {
-    currentRecognition?: CustomSpeechRecognitionInstance; // Our application-specific property
-    // SpeechRecognition and webkitSpeechRecognition are assumed to be part of the global scope
-    // as provided by lib.dom.d.ts or the browser environment.
+    currentRecognition?: CustomSpeechRecognitionInstance; // Application-specific global instance
+    // SpeechRecognition and webkitSpeechRecognition are accessed via (window as any)
+    // and then cast to CustomSpeechRecognitionConstructor to use our specific types.
   }
 }
 // ───────────────────────── END OF TYPE DEFINITIONS ─────────────────────────
@@ -100,13 +107,12 @@ export default function SpeechToText({
   showFeedback = true
 }: SpeechToTextProps) {
   const [isListening, setIsListening] = useState(false);
-  const [isSpeechSupported, setIsSpeechSupported] = useState(true); // Assume supported until checked
+  const [isSpeechSupported, setIsSpeechSupported] = useState(true);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   useEffect(() => {
-    // Check for SpeechRecognition API existence by casting window to any for the property access
     const browserSupportsSpeech = typeof window !== 'undefined' && 
                                   ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
     if (!browserSupportsSpeech) {
@@ -119,7 +125,6 @@ export default function SpeechToText({
   const startListening = useCallback(() => {
     if (!isSpeechSupported) {
       setError('Speech recognition is not supported.');
-      console.warn('Attempted to start listening but speech is not supported.');
       return;
     }
 
@@ -130,7 +135,6 @@ export default function SpeechToText({
       setShowFeedbackModal(true);
     }
 
-    // Access the API from window (casting to any) and then cast to our custom constructor type.
     const SpeechRecognitionAPIConstructor = 
         ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) as CustomSpeechRecognitionConstructor | undefined;
     
@@ -138,36 +142,41 @@ export default function SpeechToText({
       setError('Speech recognition API could not be initialized.');
       setIsListening(false); 
       setShowFeedbackModal(false);
-      console.error('SpeechRecognitionAPIConstructor is undefined after existence check.');
       return;
     }
     
     try {
-      // Ensure previous recognition is stopped before starting a new one
       if (window.currentRecognition) {
         window.currentRecognition.abort();
         window.currentRecognition = undefined;
       }
 
       const recognition: CustomSpeechRecognitionInstance = new SpeechRecognitionAPIConstructor();
+      // Assigning properties to the recognition instance
+      recognition.lang = 'en-US';
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1; // Typically 1 is sufficient
 
       recognition.onstart = () => {
         console.log('Speech recognition started.');
-        // isListening is already set to true
+        // isListening is already true
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         let interimTranscriptAccumulator = '';
         let finalTranscriptAccumulator = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const currentSegment = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscriptAccumulator += currentSegment;
-          } else {
-            interimTranscriptAccumulator += currentSegment;
+        // Iterate through SpeechRecognitionResultList
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const resultItem: SpeechRecognitionResult = event.results[i];
+          // Access the first SpeechRecognitionAlternative
+          if (resultItem.length > 0) {
+            const alternative: SpeechRecognitionAlternative = resultItem[0];
+            if (resultItem.isFinal) {
+              finalTranscriptAccumulator += alternative.transcript;
+            } else {
+              interimTranscriptAccumulator += alternative.transcript;
+            }
           }
         }
         setTranscript(finalTranscriptAccumulator || interimTranscriptAccumulator);
@@ -185,22 +194,19 @@ export default function SpeechToText({
 
       recognition.onend = () => {
         console.log('Speech recognition ended.');
-        // Check if this instance was the one being managed and isListening was true
-        // This 'isListening' refers to the state when this onend handler was defined (closure)
+        // 'isListening' in this closure refers to the state when startListening was created.
+        // It's a dependency of startListening's useCallback.
         if (window.currentRecognition === recognition) { 
             setIsListening(false); 
             setShowFeedbackModal(false);
-            // Use functional update to get the latest transcript value for onTranscript
             setTranscript(currentTranscriptValue => {
               if (currentTranscriptValue.trim()) {
                 onTranscript(currentTranscriptValue.trim());
               }
-              return ''; // Clear transcript after processing
+              return ''; 
             });
             window.currentRecognition = undefined; 
-        }
-        // If isListening became false due to a manual stop that already cleared currentRecognition
-        else if (!isListening && window.currentRecognition === undefined) { 
+        } else if (!isListening && window.currentRecognition === undefined) {
             setShowFeedbackModal(false);
         }
       };
@@ -215,25 +221,20 @@ export default function SpeechToText({
       setIsListening(false);
       setShowFeedbackModal(false);
     }
-  // isListening is a dependency because its value is used in the onend closure.
-  }, [isSpeechSupported, onTranscript, showFeedback, isListening]); 
+  }, [isSpeechSupported, onTranscript, showFeedback, isListening]);
 
   const stopListening = useCallback(() => {
     if (window.currentRecognition) {
       console.log('Manually stopping speech recognition.');
-      // Setting isListening to false here is more for immediate UI feedback.
-      // The onend handler will also set it.
       setIsListening(false); 
-      window.currentRecognition.stop(); // This will trigger the 'onend' event.
+      window.currentRecognition.stop(); 
     } else {
-      // If no currentRecognition (e.g., error occurred or not started), ensure UI is updated.
       setIsListening(false);
     }
     setShowFeedbackModal(false); 
   }, []); 
 
   useEffect(() => {
-    // Cleanup function to abort recognition if component unmounts
     return () => {
       if (window.currentRecognition) {
         console.log('SpeechToText unmounting, aborting recognition.');
@@ -260,7 +261,7 @@ export default function SpeechToText({
 
   return (
     <div className={`inline-flex items-center ${className}`}>
-      <div className={isListening ? 'ripple-container' : ''}> {/* For visual feedback */}
+      <div className={isListening ? 'ripple-container' : ''}>
         <Button
           variant={isListening ? "destructive" : "outline"}
           size="icon"
@@ -268,7 +269,7 @@ export default function SpeechToText({
           disabled={isDisabled}
           title={isListening ? "Stop recording" : "Start speech-to-text"}
           aria-label={isListening ? "Stop recording" : "Start speech-to-text"}
-          className={isListening ? 'recording-pulse' : ''} // For visual feedback
+          className={isListening ? 'recording-pulse' : ''}
         >
           {isListening ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -278,20 +279,18 @@ export default function SpeechToText({
         </Button>
       </div>
       
-      {error && !isListening && ( // Show error only if not actively listening
+      {error && !isListening && (
         <span className="ml-2 text-xs text-destructive animate-fade-in">
           {error}
         </span>
       )}
       
-      {/* Optional: Display interim transcript while listening, if not using modal */}
       {isListening && transcript && !showFeedback && !showFeedbackModal && (
         <span className="ml-2 text-xs italic text-muted-foreground max-w-xs truncate typing-animation">
           {transcript}
         </span>
       )}
       
-      {/* Speech feedback modal */}
       {showFeedbackModal && showFeedback && (
         <SpeechFeedback 
           isListening={isListening} 

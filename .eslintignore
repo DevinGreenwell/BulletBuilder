@@ -1,2 +1,4 @@
 src/generated/
 src/components
+src/generated/prisma/client.js
+src/generated/prisma/index.d.ts
