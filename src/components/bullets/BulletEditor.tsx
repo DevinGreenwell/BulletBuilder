@@ -60,14 +60,21 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   
   const categories = Object.keys(competencyOptions);
 
+  // Effect to synchronize initialBullets prop to local bullets state
   useEffect(() => {
+    // Only update if initialBullets is actually different to prevent unnecessary re-renders
+    // and overwriting local changes if prop reference changes but content is same.
     if (initialBullets && JSON.stringify(initialBullets) !== JSON.stringify(bullets)) {
+      console.log("BulletEditor: initialBullets prop has changed, updating local state.");
       setBullets(initialBullets);
     }
-  }, [initialBullets, bullets]); 
+  }, [initialBullets, bullets]); // 'bullets' is included because we compare against it
 
+  // Effect to load persisted work on initial mount if no initialBullets are provided
   useEffect(() => {
+    // Check if initialBullets is truly empty or not provided
     if ((!initialBullets || initialBullets.length === 0) && typeof window !== 'undefined') {
+      console.log("BulletEditor: No initial bullets, attempting to load from storage.");
       getWork()
         .then((records: WorkRecord[]) => {
           if (records.length > 0 && records[0].content) {
@@ -78,47 +85,61 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
             } else if (Array.isArray(savedContent)) { 
                 loadedBullets = savedContent as Bullet[];
             }
+            
             if (loadedBullets.length > 0) {
-                setBullets(loadedBullets);
+                console.log("BulletEditor: Loaded bullets from storage:", loadedBullets);
+                setBullets(loadedBullets); // Update local state
+                // Call onBulletsChanged to inform parent about these loaded bullets
+                // This is important if parent needs to know about initially loaded data
+                console.log("BulletEditor: Calling onBulletsChanged for initially loaded bullets from storage.");
                 onBulletsChanged?.(loadedBullets); 
             }
           }
         })
-        .catch((err) => console.error('Failed to load bullets from storage:', err));
+        .catch((err) => console.error('BulletEditor: Failed to load bullets from storage:', err));
     }
+  // onBulletsChanged is a function, if it can change, it should be in deps.
+  // initialBullets prop is also a dependency.
   }, [initialBullets, onBulletsChanged]);
 
+  // Debounced effect to call onBulletsChanged and saveWork when 'bullets' state changes
   useEffect(() => {
-    // Prevent saving if bullets are identical to initialBullets and initialBullets is not empty
-    // This avoids saving an empty array if initialBullets was empty and then populated by the load effect.
-    if (initialBullets.length > 0 && JSON.stringify(bullets) === JSON.stringify(initialBullets)) {
-        // console.log("BulletEditor: Debounced save skipped, bullets match non-empty initialBullets.");
-        return;
-    }
-     // Also prevent saving if bullets are empty and initialBullets were also empty (or not provided)
-    if (bullets.length === 0 && (!initialBullets || initialBullets.length === 0)) {
-        // console.log("BulletEditor: Debounced save skipped, bullets and initialBullets are empty.");
-        return;
-    }
+    // This effect will run after any setBullets call (e.g., from handleChange)
+    // and also if onBulletsChanged prop itself changes.
 
+    // Skip if onBulletsChanged is not provided
+    if (!onBulletsChanged) {
+        // console.log("BulletEditor: onBulletsChanged not provided, skipping debounced effect.");
+        return;
+    }
+    
+    // console.log("BulletEditor: Debounce useEffect triggered because 'bullets' or 'onBulletsChanged' changed.");
 
     const handler = setTimeout(() => {
+      // This is the point where we inform the parent about the current state of 'bullets'
       console.log("BulletEditor: Debounced: Calling onBulletsChanged with:", bullets);
-      onBulletsChanged?.(bullets); 
-      // Assuming saveWork is for persisting to a backend/localStorage and might not be directly
-      // related to the UI update propagation for OERPreview, but keeping it.
+      onBulletsChanged(bullets); // Call directly since we checked it exists
+      
+      // Persist the content
+      // Ensure saveWork is appropriate here (e.g., content structure)
       saveWork({ content: bullets }) 
         .catch((err) => console.error('BulletEditor: Failed to save bullets (debounced):', err));
-    }, 1000); 
+    }, 1000); // 1-second debounce
 
     return () => {
       clearTimeout(handler);
     };
-  }, [bullets, initialBullets, onBulletsChanged]);
+  // This effect should run if the bullets content changes or if the callback changes.
+  // Removing initialBullets from here, as its main sync is handled by the first useEffect.
+  // The purpose here is to react to local 'bullets' state modifications.
+  }, [bullets, onBulletsChanged]); 
 
 
   const handleChange = (newBullets: Bullet[]) => {
+    // This function is the primary way local interactions update the 'bullets' state
+    console.log("BulletEditor: handleChange called. New bullets count:", newBullets.length);
     setBullets(newBullets);
+    // The useEffect watching 'bullets' will handle calling onBulletsChanged and saveWork
   };
   
   const startEditing = (bulletId: string, currentContent: string) => {
@@ -151,18 +172,16 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   };
 
   const handleToggleApply = (id: string) => {
-    // Log the state *before* the change for comparison
     const bulletToToggle = bullets.find((b: Bullet) => b.id === id);
     console.log(`BulletEditor: handleToggleApply called for ID: ${id}. Current isApplied: ${bulletToToggle?.isApplied}`);
 
     const updatedBullets = bullets.map((b: Bullet) => 
       b.id === id ? { ...b, isApplied: !b.isApplied } : b
     );
-    // Log the bullet that was toggled to see its new state
     const toggledBullet = updatedBullets.find((b: Bullet) => b.id === id);
-    console.log(`BulletEditor: Bullet ID ${id} new isApplied state: ${toggledBullet?.isApplied}`);
+    console.log(`BulletEditor: Bullet ID ${id} new isApplied state (immediate): ${toggledBullet?.isApplied}`);
     
-    handleChange(updatedBullets); // This will trigger the useEffect for onBulletsChanged
+    handleChange(updatedBullets); 
   };
   
   const generateBulletId = () => `bullet_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -215,7 +234,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
   };
 
   const moveBulletDown = (bulletId: string) => {
-    const index = bullets.findIndex(b => b.id === bulletId);
+    const index = bullets.findIndex((b: Bullet) => b.id === bulletId);
     if (index === -1 || index >= bullets.length - 1) return;
     
     const newBullets = [...bullets];
@@ -230,7 +249,7 @@ export default function BulletEditor({ initialBullets = [], onBulletsChanged }: 
       }
     }
     return 'Other'; 
-  }, [competencyOptions]);
+  }, [competencyOptions]); 
 
   const groupedBullets = useMemo(() => {
     return bullets.reduce((acc, bullet) => {
