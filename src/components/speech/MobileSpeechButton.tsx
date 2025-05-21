@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mic } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import SpeechToText from './SpeechToText';
 
 interface MobileSpeechButtonProps {

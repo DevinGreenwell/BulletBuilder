@@ -8,7 +8,7 @@ import {
   useMemo,
   KeyboardEvent,
 } from 'react';
-import { ArrowRightCircle, ArrowRightSquare, Loader2 } from 'lucide-react';
+import { ArrowRightCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import SpeechToText from '@/components/speech/SpeechToText';
 import MobileSpeechButton from '@/components/speech/MobileSpeechButton';

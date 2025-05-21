@@ -182,7 +182,7 @@ export default function SpeechToText({
     </div>
   );
 }
-interface SpeechRecognitionConstructor {
+interface _SpeechRecognitionConstructor {
   new(): SpeechRecognition;
   prototype: SpeechRecognition;
 }

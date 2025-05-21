@@ -3,11 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getWork, saveWork, WorkRecord } from '@/lib/work';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronUp, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 
 // Removed duplicate Bullet type import to avoid conflict with local declaration
 interface Bullet {

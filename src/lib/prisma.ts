@@ -13,7 +13,7 @@ export class PrismaClient {
     // Add other methods as needed
   };
 
-  constructor(options?: any) {
+  constructor(_options?: any) {
     // Initialize models
     this.work = {
       findMany: async () => [],

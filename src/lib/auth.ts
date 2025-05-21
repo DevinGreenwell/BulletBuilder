@@ -1,5 +1,4 @@
-import NextAuth, { type NextAuthOptions, DefaultSession, User } from 'next-auth';
-import { JWT } from 'next-auth/jwt';
+import NextAuth, { type NextAuthOptions, DefaultSession } from 'next-auth';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from './prisma';
 import GoogleProvider from 'next-auth/providers/google';

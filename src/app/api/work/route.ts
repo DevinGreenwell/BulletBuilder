@@ -87,7 +87,7 @@ export async function PUT(request: Request) {
     }
     
     // Now update the work - remove id from the data object to avoid Prisma errors
-    const { id: ignoredId, ...updateData } = data;
+    const { id: _ignoredId, ...updateData } = data;
     
     const updatedWork = await prisma.work.update({
       where: { id },

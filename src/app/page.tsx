@@ -6,7 +6,7 @@ import ChatInterface from '@/components/chat/ChatInterface';
 import BulletEditor from '@/components/bullets/BulletEditor';
 import OERPreview from '@/components/oer/OERPreview';
 import RankSelector from '@/components/ui/RankSelector';
-import SpeechHint from '@/components/speech/SpeechHint'; // Assuming you have this component
+// Assuming you have this component
 import { Card } from '@/components/ui/card'; // Assuming Card is from shadcn
 
 import type { Bullet } from '@/types/Bullet';
@@ -18,14 +18,14 @@ export default function Home() {
   const [rank, setRank] = useState('O3'); // Default Officer rank
 
   // Default ranks for when category changes
-  const defaultOfficerRank = "O1"; // Example, adjust as needed
-  const defaultEnlistedRank = "E4"; // Example, adjust as needed
+  const _defaultOfficerRank = "O1"; // Example, adjust as needed
+  const _defaultEnlistedRank = "E4"; // Example, adjust as needed
 
-  // Handler for Rank Category dropdown change
+// Handler for Rank Category dropdown change
 const handleRankCategoryChange = (newCategory: string) => {
   // You might want to add validation inside
   if (newCategory === "Officer" || newCategory === "Enlisted") {
-    // your existing function logic
+    setRankCategory(newCategory as 'Officer' | 'Enlisted');
   }
 };
 
