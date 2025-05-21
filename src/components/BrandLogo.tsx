@@ -13,8 +13,8 @@ export default function BrandLogo({
   return (
     <Link href="/" className="flex items-center gap-2">
       <Image
-        src="/assets/logo.svg"
-        alt="Bullet Builder 2.0 logo"
+        src="/Logo.png"
+        alt="logo"
         width={size}
         height={size}
         priority
