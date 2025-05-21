@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
 
+    "baseUrl": ".",
     "target": "ES2017",
     "lib": [
       "dom",
@@ -36,6 +37,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "next.config.ts"
+    
   ],
   "exclude": [
     "node_modules"
