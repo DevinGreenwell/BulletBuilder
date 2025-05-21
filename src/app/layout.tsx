@@ -9,6 +9,8 @@ import { Toaster } from "@/components/ui/sonner"; // Import Toaster if you use i
 import { Poppins } from 'next/font/google';
 import './globals.css';
 
+import SplashScreen from '@/components/SplashScreen';
+
 const poppins = Poppins({
   subsets: ['latin'],
   weight: ['400', '700'],
@@ -19,14 +21,11 @@ const poppins = Poppins({
 export const metadata: Metadata = { /* ... */ };
 export const viewport: Viewport = { /* ... */ };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={poppins.className}>
+        <SplashScreen />
         {/* Add ThemeProvider here */}
         <ThemeProvider
           attribute="class"
