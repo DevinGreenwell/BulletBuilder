@@ -6,9 +6,9 @@ import Link from 'next/link';
 export default function SplashScreen() {
   const [show, setShow] = useState(false);
 
-  // 👉 show once per browser (localStorage flag)
+  // 👉 show every browser session (localStorage flag)
   useEffect(() => {
-    const flag = window.localStorage.getItem('sawSplash');
+    const flag = window.sessionStorage.getItem('sawSplash');
     if (!flag) setShow(true);
   }, []);
 
@@ -32,7 +32,7 @@ export default function SplashScreen() {
 
         <button
           onClick={() => {
-            window.localStorage.setItem('sawSplash', '1');
+            window.sessionStorage.setItem('sawSplash', '1');
             setShow(false);
           }}
           className="mt-4 block w-full text-xs text-gray-500 hover:underline"
