@@ -17,7 +17,7 @@ export default function SplashScreen() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="w-80 rounded-2xl bg-white p-6 text-center shadow-xl">
-        <h1 className="mb-3 text-xl font-semibold">Enjoying Bullet Builder 2.0?</h1>
+        <h1 className="mb-3 text-xl text-gray-800 font-semibold">Enjoying Bullet Builder 2.0?</h1>
         <p className="mb-6 text-sm text-gray-600">
           If this tool helps you out, buy me a coffee!
         </p>
