@@ -1,28 +1,34 @@
 'use client';
+
 import Link from 'next/link';
 
+/**
+ * Shown after a magic‑link or password‑reset request.
+ * Now that production e‑mail flows through Resend, we no longer
+ * point users at the Ethereal dev inbox.
+ */
 export default function VerifyRequestPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
-      <h1 className="text-2xl font-semibold mb-4">Check your email</h1>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
+      <h1 className="mb-4 text-2xl font-semibold">Check your email</h1>
       <p className="mb-6">
-        A sign in link has been sent to your email address.
-        Check your inbox (and spam folder) for the verification link.
+        We’ve sent a secure sign‑in link to the address you provided. It
+        should arrive within a few seconds—please check your inbox (and
+        spam folder) for a message from <em>no-reply@bulletbuilder.net</em>.
       </p>
-      <p className="mb-4 text-sm text-gray-500">
-        For development with Ethereal, check the inbox at:
-        <a 
-          href="https://ethereal.email/messages" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="ml-1 text-blue-600 hover:underline"
+      <p className="mb-4 text-sm text-muted-foreground">
+        Didn’t receive it? Wait a minute and try again, or contact support
+        at&nbsp;
+        <a
+          href="mailto:support@bulletbuilder.net"
+          className="text-blue-600 hover:underline"
         >
-          ethereal.email/messages
-        </a>
+          devin.c.greenwell@gmail.com
+        </a>.
       </p>
-      <Link href="/auth/signin" className="text-blue-600 hover:underline">
+      <Link href="/signin" className="text-blue-600 hover:underline">
         ← Back to sign in
       </Link>
-    </div>
+    </main>
   );
 }
