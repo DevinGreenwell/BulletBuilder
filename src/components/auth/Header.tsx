@@ -7,7 +7,6 @@ import { ModeToggle } from '@/components/ui/theme-toggle';
 import BrandLogo from '@/components/BrandLogo';
 
 
-
 export default function Header() {
   const { data: session, status } = useSession();
   const isLoading = status === 'loading';
@@ -17,6 +16,8 @@ export default function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between items-center">
           {/* Left Side: Title */}
+          <BrandLogo size={40} withText />         {/* ← NEW */}
+      {/* …nav / auth buttons … */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="text-xl font text-foreground"> {/* Use primary color */}
               Bullet Builder 2.0
