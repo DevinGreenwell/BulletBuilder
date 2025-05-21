@@ -16,7 +16,7 @@ export default function Header() {
           {/* Left Side: Title */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="text-xl font text-foreground"> {/* Use primary color */}
-              EvaluAItions
+              Bullet Builder 2.0
             </Link>
           </div>
 
