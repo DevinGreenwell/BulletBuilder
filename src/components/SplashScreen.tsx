@@ -25,7 +25,7 @@ export default function SplashScreen() {
         <Link
           href="https://account.venmo.com/u/Devin-Greenwell-1"
           target="_blank"
-          className="inline-block rounded-full bg-amber-500 px-5 py-2 font-medium text-white hover:bg-amber-600"
+          className="inline-block rounded-full bg-blue-500 px-5 py-2 font-medium text-white hover:bg-blue-600"
         >
           ☕ Send via Venmo
         </Link>
