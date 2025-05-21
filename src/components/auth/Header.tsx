@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import UserMenu from '@/components/auth/UserMenu';
 import { ModeToggle } from '@/components/ui/theme-toggle';
+import BrandLogo from '@/components/BrandLogo';
+
+
 
 export default function Header() {
   const { data: session, status } = useSession();
