@@ -19,7 +19,7 @@ export default function SplashScreen() {
       <div className="w-80 rounded-2xl bg-white p-6 text-center shadow-xl">
         <h1 className="mb-3 text-xl text-gray-800 font-semibold">Enjoying Bullet Builder 2.0?</h1>
         <p className="mb-6 text-sm text-gray-600">
-          If this tool helps you out, buy me a coffee!
+          Help keep this tool alive with a modest donation!
         </p>
 
         <Link
@@ -27,7 +27,7 @@ export default function SplashScreen() {
           target="_blank"
           className="inline-block rounded-full bg-blue-500 px-5 py-2 font-medium text-white hover:bg-blue-600"
         >
-          ☕ Send via Venmo
+          ☕ Buy Me a Coffee
         </Link>
 
         <button
@@ -37,7 +37,7 @@ export default function SplashScreen() {
           }}
           className="mt-4 block w-full text-xs text-gray-500 hover:underline"
         >
-          Maybe later
+          Next time
         </button>
       </div>
     </div>

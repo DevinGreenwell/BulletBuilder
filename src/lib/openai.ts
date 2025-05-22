@@ -57,7 +57,7 @@ export async function generateBullet({
     const rankTitle = getRankTitle(rank);
 
     // Define the System Prompt for conversation
-    const systemMessageContent = `You are a helpful USCG ${rankCategory} Evaluation writing assistant for a ${rankTitle}.
+    const systemMessageContent = `You are an expert USCG ${rankCategory} Evaluation writing assistant for a ${rankTitle}.
 Your goal is to help the user craft an excellent performance bullet for the "${competency}" competency.
 Competency description: ${competencyDescription}.
 
@@ -168,7 +168,7 @@ Generate *only* the summary paragraph as plain text, without any introductory ph
         const response = await openai.chat.completions.create({
             model: "gpt-4.1-nano-2025-04-14", //Or you preferred model
             messages: [
-                { role: "system", content: `You are a highly skilled writing assistant specialized in summarizing USCG performance bullets for main evaluation categories according to specified weights for ${rankCategory === 'Officer' ? 'an Officer' : 'Enlisted personnel'}.` },
+                { role: "system", content: `You are an expert writing assistant specialized in summarizing USCG performance bullets for main evaluation categories according to specified weights for ${rankCategory === 'Officer' ? 'an Officer' : 'Enlisted personnel'}.` },
                 { role: "user", content: systemPrompt } // The user prompt contains the detailed task and data
             ],
             temperature: 0.5, // Keep lower temp for factual summary
