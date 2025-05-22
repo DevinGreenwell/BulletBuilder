@@ -53,3 +53,4 @@ pnpm-debug.log*
 
 # Wrangler state
 .wrangler
+.vercel
