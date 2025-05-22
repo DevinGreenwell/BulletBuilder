@@ -5,8 +5,12 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
 import { sendVerificationEmail } from '@/lib/auth-email';
 import type { User, Account, Profile } from 'next-auth';
+import { authOptions as externalAuthOptions } from '@/lib/auth-options';
 
-export const authOptions = {
+
+const handler = NextAuth(authOptions);
+
+export const localAuthOptions = {
   debug: true, // Enable debug mode
   pages: {
     signIn: '/auth/signin',
@@ -48,5 +52,5 @@ export const authOptions = {
   },
 };
 
-export const handler = NextAuth(authOptions);
+export const handler = NextAuth(localAuthOptions);
 export { handler as GET, handler as POST };
