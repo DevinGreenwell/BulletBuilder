@@ -12,7 +12,6 @@ import { sendVerificationEmail } from '@/lib/auth-email';
 /* ──────────────────────────────────────────────────────────────── */
 const authOptions = {
   adapter: PrismaAdapter(prisma),
-
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -31,10 +30,9 @@ const authOptions = {
       },
     }),
   ],
-
   session: { strategy: 'jwt' as const },
   pages: { signIn: '/signin' },
-
+  secret: process.env.NEXTAUTH_SECRET,
   // …add callbacks, events, theme, etc. here as needed
 };
 
