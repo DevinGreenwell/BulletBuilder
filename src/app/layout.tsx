@@ -17,8 +17,35 @@ const poppins = Poppins({
   variable: '--font-poppins',
 });
 
+export const metadata: Metadata = {
+  title: 'Bullet Builder 2.0',
+  description: 'AI-Powered Evaluation Tool for USCG',
+  metadataBase: new URL('https://www.BulletBuilder.net'), // <- Your live domain
+  openGraph: {
+    title: 'Bullet Builder 2.0',
+    description: 'AI-Powered Evaluation Tool for USCG',
+    url: 'https://www.BulletBuilder.net', // <- Your live domain
+    siteName: 'Bullet Builder 2.0',
+    images: [
+      {
+        url: '/logo.png', // or whatever path to your logo or preview image
+        width: 267,
+        height: 240,
+        alt: 'Bullet Builder 2.0',
+      },
+    ],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Bullet Builder 2.0',
+    description: 'AI-Powered Evaluation Tool for USCG',
+    images: ['/logo.png'], // same as above
+  },
+};
 
-export const metadata: Metadata = { /* ... */ };
+
+
 export const viewport: Viewport = { /* ... */ };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
