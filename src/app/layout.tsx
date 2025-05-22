@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes"; // Import ThemeProvider
 import { Toaster } from "@/components/ui/sonner"; // Import Toaster if you use it
 import { Poppins } from 'next/font/google';
 import './globals.css';
+import { Analytics } from "@vercel/analytics/next"
 
 import SplashScreen from '@/components/SplashScreen';
 
