@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { sendVerificationEmail } from '@/lib/auth-email';
 import type { User, Account, Profile } from 'next-auth';
 
-const authOptions = {
+export const authOptions = {
   debug: true, // Enable debug mode
   pages: {
     signIn: '/auth/signin',
