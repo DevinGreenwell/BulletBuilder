@@ -4,6 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getWork, saveWork, WorkRecord } from '@/lib/work';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+
+// Removed from the top-level
+
 
 // Removed duplicate Bullet type import to avoid conflict with local declaration
 interface Bullet {
@@ -23,12 +27,21 @@ export default function BulletEditor({ initialBullets, onBulletsChanged }: Bulle
   const [bullets, setBullets] = useState<Bullet[]>(initialBullets || []);
   
   // State for new bullet form
-  const [showNewBulletForm, setShowNewBulletForm] = useState(false);
-  const [newBullet, setNewBullet] = useState({
-    competency: '',
-    content: '',
-    category: ''
-  });
+const [showNewBulletForm, setShowNewBulletForm] = useState(false);
+const [newBullet, setNewBullet] = useState({
+  competency: '',
+  content: '',
+  category: ''
+});
+
+const { data: session, status } = useSession();
+
+if (status === 'loading') {
+  return <p>Loading…</p>;
+}
+if (!session) {
+  return <p>Please sign in to manage your bullets.</p>;
+}
   
   // State for inline editing
   const [editingBullet, setEditingBullet] = useState<string | null>(null);
@@ -73,7 +86,7 @@ export default function BulletEditor({ initialBullets, onBulletsChanged }: Bulle
       getWork()
         .then((records: WorkRecord[]) => {
           if (records.length > 0) {
-            const saved = records[0].content as Bullet[];
+            const saved = (records[0] as any).content as Bullet[];
             console.log("BulletEditor: Loaded bullets from storage:", saved);
             setBullets(saved);
             onBulletsChanged?.(saved);

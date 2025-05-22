@@ -1,151 +1,74 @@
-import { NextResponse } from "next/server";
-import { prisma } from "../../../lib/prisma";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
+import { z } from 'zod';
+import { NextResponse } from 'next/server';
 
+const workSchema = z.object({
+  content: z.any(),
+});
+
+/* ------------------------------------------------------------------ */
+/* GET  /api/work  – return all work records for the signed-in user   */
+/* ------------------------------------------------------------------ */
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json([], { status: 200 });
-  
   try {
-    const works = await prisma.work.findMany({
-      where: { userId: session.user.id },
-      orderBy: { updatedAt: 'desc' },
+    console.log('[GET] /api/work');
+
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const work = await prisma.work.findMany({
+      where: { userId: session.user.email }, // Replace 'userId' with the correct field name from your Prisma schema
+      orderBy: { createdAt: 'desc' },
     });
-    return NextResponse.json(works);
+
+    /*  Important: return the array itself, not wrapped in { work: … }
+        – BulletEditor expects getWork() to resolve to WorkRecord[]           */
+    return NextResponse.json(work);
   } catch (error) {
-    console.error('Error fetching work records:', error);
+    console.error('Error in GET /api/work:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error fetching records" },
-      { status: 500 }
+      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
     );
   }
 }
 
-export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  
+/* ------------------------------------------------------------------ */
+/* POST /api/work  – save a new work record for the signed-in user    */
+/* ------------------------------------------------------------------ */
+export async function POST(req: Request) {
   try {
-    const data = await request.json();
-    
-    const work = await prisma.work.create({
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const json = await req.json();
+    const parsed = workSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+
+    const newWork = await prisma.work.create({
       data: {
-        userId: session.user.id,
-        content: data.content || [],
-        evaluationData: data.evaluationData || undefined,
-        bulletWeights: data.bulletWeights || undefined,
-        summaries: data.summaries || undefined
+        userId: session.user.email,
+        userEmail: session.user.email,
+        title: json.title || 'Untitled', // Provide a default title if not present
+        content: parsed.data.content, // Ensure 'content' is defined in the Prisma schema
       },
     });
-    
-    return NextResponse.json(work);
+
+    /*  Return the single record so the caller can update state immediately  */
+    return NextResponse.json(newWork);
   } catch (error) {
     console.error('Error in POST /api/work:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(request: Request) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  
-  try {
-    const data = await request.json();
-    const url = new URL(request.url);
-    
-    // Look for ID in both the query parameter and the request body
-    const idFromQuery = url.searchParams.get('id');
-    const idFromBody = data.id;
-    const id = idFromQuery || idFromBody;
-    
-    if (!id) {
-      return NextResponse.json({ error: "Missing work ID" }, { status: 400 });
-    }
-    
-    // First check if the work exists and belongs to this user
-    const existingWork = await prisma.work.findUnique({
-      where: { id },
-    });
-    
-    if (!existingWork) {
-      return NextResponse.json({ error: "Work not found" }, { status: 404 });
-    }
-    
-    if (existingWork.userId !== session.user.id) {
-      return NextResponse.json({ error: "Not authorized to update this work" }, { status: 403 });
-    }
-    
-    // Now update the work - remove id from the data object to avoid Prisma errors
-    const { id: _ignoredId, ...updateData } = data;
-    
-    const updatedWork = await prisma.work.update({
-      where: { id },
-      data: {
-        content: updateData.content || undefined,
-        evaluationData: updateData.evaluationData || undefined,
-        bulletWeights: updateData.bulletWeights || undefined,
-        summaries: updateData.summaries || undefined
-      },
-    });
-    
-    return NextResponse.json(updatedWork);
-  } catch (error) {
-    console.error('Error in PUT /api/work:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(request: Request) {
-  const session = await getServerSession(authOptions);
-  const url = new URL(request.url);
-  const id = url.searchParams.get('id');
-  
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  
-  if (!id) {
-    return NextResponse.json({ error: "Missing work ID" }, { status: 400 });
-  }
-  
-  try {
-    // First check if the work exists and belongs to this user
-    const existingWork = await prisma.work.findUnique({
-      where: { id },
-    });
-    
-    if (!existingWork) {
-      return NextResponse.json({ error: "Work not found" }, { status: 404 });
-    }
-    
-    if (existingWork.userId !== session.user.id) {
-      return NextResponse.json({ error: "Not authorized to delete this work" }, { status: 403 });
-    }
-    
-    // Now delete the work
-    await prisma.work.delete({
-      where: { id },
-    });
-    
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error in DELETE /api/work:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
+      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
     );
   }
 }

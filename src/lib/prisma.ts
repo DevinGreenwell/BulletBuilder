@@ -1,52 +1,9 @@
-// src/lib/prisma.ts
-// Mock Prisma client for deployment
-// This is a temporary solution until Prisma is properly set up
+import { PrismaClient } from '@prisma/client'
 
-// Define a mock PrismaClient type with required models
-export class PrismaClient {
-  work: {
-    findMany: (args?: any) => Promise<any[]>;
-    findUnique: (args?: any) => Promise<any | null>;
-    create: (args?: any) => Promise<any>;
-    update: (args?: any) => Promise<any>;
-    delete: (args?: any) => Promise<any>;
-    // Add other methods as needed
-  };
-
-  constructor(_options?: any) {
-    // Initialize models
-    this.work = {
-      findMany: async () => [],
-      findUnique: async () => null,
-      create: async (args) => args.data,
-      update: async (args) => args.data,
-      delete: async () => ({}),
-      // Implement other methods as needed
-    };
-  }
-
-  connect(): Promise<void> {
-    return Promise.resolve();
-  }
-  
-  disconnect(): Promise<void> {
-    return Promise.resolve();
-  }
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
 }
 
-// Create a singleton instance
-declare global {
-  // prevent creating multiple instances in dev
-  var prisma: PrismaClient | undefined;
-}
+export const prisma = globalForPrisma.prisma ?? new PrismaClient()
 
-// Create the mock prisma instance using singleton pattern
-const prisma = global.prisma || new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
-}
-
-// Export both as default and named export to support different import styles
-export { prisma };
-export default prisma;
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
