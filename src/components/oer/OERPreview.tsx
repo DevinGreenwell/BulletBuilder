@@ -625,7 +625,7 @@ const generateReportDocument = async () => {
             disabled={isGeneratingDoc || appliedBullets.length === 0 || Object.values(weightErrors).some(e => !!e)}
             className="px-4 py-2"
         >
-            {isGeneratingDoc ? 'Generating PDF...' : `Generate ${rankCategory === 'Officer' ? 'OER' : 'Evaluation'} Document`}
+            {isGeneratingDoc ? 'Generating PDF...' : `Generate ${rankCategory === 'Officer' ? 'OSF' : 'Evaluation'} Document`}
         </Button>
       </div>
     </div>
