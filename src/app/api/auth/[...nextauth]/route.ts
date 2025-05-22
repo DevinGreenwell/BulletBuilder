@@ -32,7 +32,7 @@ const authOptions = {
     }),
   ],
 
-  session: { strategy: 'jwt' },
+  session: { strategy: 'jwt' as const },
   pages: { signIn: '/signin' },
 
   // …add callbacks, events, theme, etc. here as needed
