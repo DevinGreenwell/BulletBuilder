@@ -462,7 +462,6 @@ export async function POST(request: NextRequest) {
         executablePath,
         headless: true,
         args,
-        ignoreHTTPSErrors: true,
         defaultViewport: {
           width: 1200,
           height: 800,
