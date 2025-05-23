@@ -3,22 +3,25 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Dynamic import for Puppeteer packages to avoid bundling issues
 const getPuppeteer = async () => {
+  // Use puppeteer-core with chromium for both development and production
+  const [puppeteerCore, chromium] = await Promise.all([
+    import('puppeteer-core'),
+    import('@sparticuz/chromium'),
+  ]);
+
   if (process.env.NODE_ENV === 'development') {
-    // Use regular puppeteer in development
-    const puppeteer = await import('puppeteer');
+    // In development, try to use local Chrome if available
     return {
-      puppeteer: puppeteer.default,
-      executablePath: undefined,
+      puppeteer: puppeteerCore.default,
+      executablePath: process.platform === 'darwin' 
+        ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        : process.platform === 'win32'
+          ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+          : '/usr/bin/google-chrome-stable',
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     };
   } else {
-    // Use puppeteer-core with chromium for production
-    const [puppeteerCore, chromium] = await Promise.all([
-      import('puppeteer-core'),
-      import('@sparticuz/chromium'),
-    ]);
-
-    // Configure chromium for serverless
+    // Configure chromium for serverless production
     chromium.default.setGraphicsMode = false;
     chromium.default.setHeadlessMode = true;
 
@@ -459,6 +462,7 @@ export async function POST(request: NextRequest) {
         executablePath,
         headless: true,
         args,
+        ignoreHTTPSErrors: true,
         defaultViewport: {
           width: 1200,
           height: 800,
