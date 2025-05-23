@@ -203,7 +203,7 @@ export default function Home() {
 
         {/* Authentication notice */}
         {!isAuthenticated && (
-          <div className="mb-6">
+          <div className="flex m-6">
             <Alert>
               <AlertDescription>
                 Sign in to save your work and access it across sessions.
@@ -213,7 +213,7 @@ export default function Home() {
         )}
 
         {/* Rank Selector */}
-        <div className="mb-6 p-4 md:p-6 bg-card text-card-foreground border border-border rounded-md shadow-sm">
+        <div className="mb-6 p-4 md:p-6 bg-card text-card-foreground border border-ring shadow-sm">
           <ErrorBoundary FallbackComponent={ErrorFallback}>
             <div>
               <RankSelector
@@ -228,7 +228,7 @@ export default function Home() {
 
         {/* Tabs Navigation */}
         <nav className="mb-6">
-          <div className="flex border-b border-border" role="tablist">
+          <div className="flex border-b border-ring">
             {tabs.map(tab => (
               <Tab
                 key={tab.id}
@@ -242,7 +242,7 @@ export default function Home() {
         </nav>
 
         {/* Main Content Area */}
-        <div className="p-4 md:p-6 bg-card text-card-foreground border border-border rounded-md shadow-sm">
+        <div className="p-4 md:p-6 bg-card text-card-foreground border border-ring rounded-md shadow-sm">
           {error && (
             <div className="mb-4">
               <Alert variant="destructive">
