@@ -9,10 +9,10 @@ import OERPreview from '@/components/oer/OERPreview';
 import RankSelector from '@/components/ui/RankSelector';
 import { Card } from '@/components/ui/card';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browserDetection';
-import { InAppBrowserWarning } from '@/components/debug/InAppBrowserWarning';
 import { useRouter } from 'next/navigation';
 
 import type { Bullet } from '@/types/Bullet';
+import { InAppBrowserWarning } from '@/components/debug/InAppBrowserWarning';
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -24,19 +24,21 @@ export default function Home() {
   const [isInApp, setIsInApp] = useState(false);
   const [browserName, setBrowserName] = useState('');
 
-  // Check for in-app browser on mount and redirect if not authenticated
+  // Check for in-app browser on mount
   useEffect(() => {
     const inApp = isInAppBrowser();
     setIsInApp(inApp);
     if (inApp) {
       setBrowserName(getInAppBrowserName());
     }
-    
-    // If not in app browser and not authenticated, redirect to sign-in
-    if (!inApp && status === 'unauthenticated') {
+  }, []);
+
+  // Redirect to sign-in if not authenticated and not in app browser
+  useEffect(() => {
+    if (status === 'unauthenticated' && !isInApp) {
       router.push('/auth/signin');
     }
-  }, [status, router]);
+  }, [status, isInApp, router]);
 
   // Default ranks for when category changes
   // const _defaultOfficerRank = "O1"; // Example, adjust as needed
@@ -102,7 +104,15 @@ export default function Home() {
             USCG {getEvaluationTitle()} Generator
           </h1>
           <InAppBrowserWarning browserName={browserName} />
-        </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+            <h2 className="text-lg font-semibold mb-2">In-App Browser Detected</h2>
+            <p className="mb-2">
+              You're using {browserName || 'an in-app browser'}, which may not display this application correctly.
+            </p>
+            <p className="text-sm">
+              For the best experience, please open this link in your device's default browser (Safari, Chrome, etc.).
+            </p>
+          </div>
       </main>
     );
   }
@@ -120,17 +130,9 @@ export default function Home() {
     );
   }
 
-  // Show sign-in loading if redirecting
-  if (!session && !isInApp) {
-    return (
-      <main className="min-h-screen p-4 md:p-8 bg-background text-foreground">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-lg text-muted-foreground">Redirecting to sign in...</div>
-          </div>
-        </div>
-      </main>
-    );
+  // Don't show anything while redirecting (unless in app browser)
+  if (!session && status === 'unauthenticated' && !isInApp) {
+    return null; // This prevents the redirect loop by not rendering anything
   }
 
   // Main authenticated app
