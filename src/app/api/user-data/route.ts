@@ -1,7 +1,7 @@
-// At the top of src/app/api/user-data/route.ts
+// src/app/api/user-data/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth'; // Import from shared config, NOT from route
+import { authOptions } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { content, title = 'Untitled Work' } = body;
+    const { content, title } = body;
 
     if (!content) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         userEmail: session.user.email || '',
-        title: title,
+        title: title || 'USCG Evaluation Data',
         content: content,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, content } = body;
+    const { id, content, title } = body;
 
     if (!id || !content) {
       return NextResponse.json(
@@ -103,12 +103,18 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    const updateData: any = {
+      content: content,
+      updatedAt: new Date()
+    };
+
+    if (title !== undefined) {
+      updateData.title = title;
+    }
+
     const userData = await prisma.work.update({
       where: { id: id },
-      data: {
-        content: content,
-        updatedAt: new Date()
-      }
+      data: updateData
     });
 
     return NextResponse.json(userData);

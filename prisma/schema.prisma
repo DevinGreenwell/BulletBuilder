@@ -57,13 +57,13 @@ model VerificationToken {
 
 model Work {
   id        String   @id @default(cuid())
-  userId    String   // This field name should match what's used in the relation
-  userEmail String?  // Optional: if you want to store email separately
-  content   Json     // Stores the user's bullets, preferences, etc.
+  userId    String
+  userEmail String?
+  title     String?  // Add this line
+  content   Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  // Fix: Make sure the field name matches exactly
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])

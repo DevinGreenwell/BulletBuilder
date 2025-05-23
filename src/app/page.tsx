@@ -11,9 +11,8 @@ import OERPreview from '@/components/oer/OERPreview';
 import RankSelector from '@/components/ui/RankSelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import BuyMeCoffeeButton from '@/components/SplashScreen';
-import { useUserPersistence } from '@/hooks/useUserPersistence';
 import { cn } from '@/lib/utils';
-import type { Bullet } from '@/types/bullets'; // Import Bullet type from shared location
+import type { Bullet } from '@/types/bullets';
 
 // Tab type
 type TabType = 'chat' | 'bullets' | 'oer';
@@ -52,47 +51,15 @@ const ErrorFallback = ({ error }: { error: Error }) => (
   </div>
 );
 
-// Loading component
-const LoadingState = () => (
-  <div className="min-h-screen p-4 md:p-8 bg-background text-foreground">
-    <div className="mx-auto max-w-6xl">
-      <div className="animate-pulse">
-        <div className="h-8 bg-gray-200 rounded-md w-1/2 mx-auto mb-6"></div>
-        <div className="h-32 bg-gray-200 rounded-md mb-6"></div>
-        <div className="h-12 bg-gray-200 rounded-md mb-6"></div>
-        <div className="h-96 bg-gray-200 rounded-md"></div>
-      </div>
-    </div>
-  </div>
-);
-
 export default function Home() {
   const { data: session, status } = useSession();
-  const {
-    userData,
-    isLoading: persistenceLoading,
-    error: persistenceError,
-    saveStatus,
-    updateBullets,
-    updatePreferences,
-    isAuthenticated
-  } = useUserPersistence();
-
-  // Local state
+  
+  // Local state management (without persistence for now)
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [error, setError] = useState<string | null>(null);
-
-  // Initialize state from persisted data
-  useEffect(() => {
-    if (!persistenceLoading && userData) {
-      setActiveTab(userData.preferences.lastActiveTab || 'chat');
-    }
-  }, [persistenceLoading, userData]);
-
-  // Derived state from persisted data
-  const bullets = userData?.bullets || [];
-  const rankCategory = userData?.preferences.rankCategory || 'Officer';
-  const rank = userData?.preferences.rank || 'O3';
+  const [bullets, setBullets] = useState<Bullet[]>([]);
+  const [rankCategory, setRankCategory] = useState<'Officer' | 'Enlisted'>('Officer');
+  const [rank, setRank] = useState('O3');
 
   // Constants
   const defaultOfficerRank = "O1";
@@ -103,20 +70,17 @@ export default function Home() {
     const category = newCategory as 'Officer' | 'Enlisted';
     const newRank = category === 'Officer' ? defaultOfficerRank : defaultEnlistedRank;
     
-    updatePreferences({
-      rankCategory: category,
-      rank: newRank
-    });
-  }, [updatePreferences]);
+    setRankCategory(category);
+    setRank(newRank);
+  }, []);
 
   const handleRankChange = useCallback((newRank: string) => {
-    updatePreferences({ rank: newRank });
-  }, [updatePreferences]);
+    setRank(newRank);
+  }, []);
 
   const handleTabChange = useCallback((newTab: TabType) => {
     setActiveTab(newTab);
-    updatePreferences({ lastActiveTab: newTab });
-  }, [updatePreferences]);
+  }, []);
 
   const handleBulletGenerated = useCallback(async (newBullet: Bullet) => {
     try {
@@ -126,21 +90,24 @@ export default function Home() {
         throw new Error("Invalid bullet data received");
       }
 
-      const existingBullets = bullets || [];
-      if (existingBullets.some(b => b.id === newBullet.id)) {
-        console.log("page.tsx: Bullet already exists, not adding:", newBullet.id);
-        return;
-      }
+      setBullets(prevBullets => {
+        if (prevBullets.some(b => b.id === newBullet.id)) {
+          console.log("page.tsx: Bullet already exists, not adding:", newBullet.id);
+          return prevBullets;
+        }
 
-      // Make sure the new bullet has all required properties
-      const completeNewBullet: Bullet = {
-        ...newBullet,
-        isApplied: newBullet.isApplied ?? false,
-        category: newBullet.category ?? '',
-      };
-      const updatedBullets = [...existingBullets, completeNewBullet];
-      updateBullets(updatedBullets);
-      console.log("page.tsx: Updated bullets state after generation:", updatedBullets);
+        // Make sure the new bullet has all required properties
+        const completeNewBullet: Bullet = {
+          ...newBullet,
+          isApplied: newBullet.isApplied ?? false,
+          category: newBullet.category ?? '',
+          createdAt: newBullet.createdAt ?? Date.now(),
+        };
+
+        const updatedBullets = [...prevBullets, completeNewBullet];
+        console.log("page.tsx: Updated bullets state after generation:", updatedBullets);
+        return updatedBullets;
+      });
 
       handleTabChange('bullets');
       setError(null);
@@ -149,19 +116,21 @@ export default function Home() {
       setError(err instanceof Error ? err.message : 'An error occurred while generating the bullet');
       throw err;
     }
-  }, [bullets, updateBullets, handleTabChange]);
+  }, [handleTabChange]);
 
   const handleBulletsChanged = useCallback((updatedBulletsFromEditor: any[]) => {
     console.log("page.tsx: handleBulletsChanged received from BulletEditor:", updatedBulletsFromEditor);
-    // Add createdAt property if missing and ensure isApplied is always a boolean
+    
+    // Ensure all bullets have required properties
     const completeUpdatedBullets: Bullet[] = updatedBulletsFromEditor.map(bullet => ({
       ...bullet,
       createdAt: bullet.createdAt || Date.now(),
-      isApplied: bullet.isApplied === true // Ensure strict boolean type
+      isApplied: Boolean(bullet.isApplied) // Ensure strict boolean type
     }));
-    updateBullets(completeUpdatedBullets);
+    
+    setBullets(completeUpdatedBullets);
     setError(null);
-  }, [updateBullets]);
+  }, []);
 
   // Memoized values
   const getEvaluationTitle = useCallback(() => {
@@ -193,14 +162,25 @@ export default function Home() {
       case 'bullets':
         return (
           <BulletEditor
-            initialBullets={bullets}
+            initialBullets={bullets.map(bullet => ({
+              ...bullet,
+              isApplied: Boolean(bullet.isApplied)
+            }))}
             onBulletsChanged={handleBulletsChanged}
           />
         );
       case 'oer':
         return (
           <OERPreview
-            bullets={bullets}
+            bullets={bullets
+              .filter((bullet): bullet is Bullet & { id: string } => 
+                typeof bullet.id === 'string' && bullet.id.length > 0
+              )
+              .map(bullet => ({
+                ...bullet,
+                isApplied: Boolean(bullet.isApplied)
+              }))
+            }
             rankCategory={rankCategory}
             rank={rank}
           />
@@ -210,10 +190,7 @@ export default function Home() {
     }
   };
 
-  // Show loading state while data is being loaded
-  if (persistenceLoading || status === 'loading') {
-    return <LoadingState />;
-  }
+  const isAuthenticated = status === 'authenticated';
 
   return (
     <main className="min-h-screen p-4 md:p-8 bg-background text-foreground">
@@ -222,21 +199,6 @@ export default function Home() {
           <h1 className="text-center text-2xl font-bold md:text-3xl text-foreground flex-1">
             USCG {getEvaluationTitle()} Generator
           </h1>
-          
-          {/* Save status indicator */}
-          {isAuthenticated && (
-            <div className="text-sm">
-              {saveStatus === 'saving' && (
-                <span className="text-blue-600">Saving...</span>
-              )}
-              {saveStatus === 'saved' && (
-                <span className="text-green-600">Saved</span>
-              )}
-              {saveStatus === 'error' && (
-                <span className="text-red-600">Save failed</span>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Authentication notice */}
@@ -245,17 +207,6 @@ export default function Home() {
             <Alert>
               <AlertDescription>
                 Sign in to save your work and access it across sessions.
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        {/* Persistence error */}
-        {persistenceError && (
-          <div className="mb-6">
-            <Alert variant="destructive">
-              <AlertDescription>
-                Data persistence error: {persistenceError}
               </AlertDescription>
             </Alert>
           </div>
@@ -318,11 +269,6 @@ export default function Home() {
         <footer className="mt-8 flex flex-col items-center gap-2">
           <p className="text-center text-sm text-muted-foreground">
             This application helps generate performance bullets and create {getEvaluationTitle()}s.
-            {isAuthenticated && (
-              <span className="block mt-1">
-                Your work is automatically saved.
-              </span>
-            )}
           </p>
           <div className="mt-2">
             <ErrorBoundary FallbackComponent={ErrorFallback}>
