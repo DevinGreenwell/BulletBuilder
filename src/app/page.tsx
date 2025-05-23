@@ -9,10 +9,10 @@ import OERPreview from '@/components/oer/OERPreview';
 import RankSelector from '@/components/ui/RankSelector';
 import { Card } from '@/components/ui/card';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browserDetection';
+import { InAppBrowserWarning } from '@/components/InAppBrowserWarning';
 import { useRouter } from 'next/navigation';
 
 import type { Bullet } from '@/types/Bullet';
-import { InAppBrowserWarning } from '@/components/debug/InAppBrowserWarning';
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -104,15 +104,7 @@ export default function Home() {
             USCG {getEvaluationTitle()} Generator
           </h1>
           <InAppBrowserWarning browserName={browserName} />
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
-            <h2 className="text-lg font-semibold mb-2">In-App Browser Detected</h2>
-            <p className="mb-2">
-              You're using {browserName || 'an in-app browser'}, which may not display this application correctly.
-            </p>
-            <p className="text-sm">
-              For the best experience, please open this link in your device's default browser (Safari, Chrome, etc.).
-            </p>
-          </div>
+        </div>
       </main>
     );
   }
@@ -137,7 +129,7 @@ export default function Home() {
 
   // Main authenticated app
   return (
-    <main className="min-h-screen p-4 md:p-8 bg-background text-foreground"> {/* Ensure base theme colors */}
+    <main className="min-h-screen p-4 md:p-8 bg-background text-foreground">
       <div className="mx-auto max-w-6xl">
         <h1 className="mb-6 text-center text-2xl font-bold md:text-3xl text-foreground">
           USCG {getEvaluationTitle()} Generator
@@ -158,15 +150,15 @@ export default function Home() {
 
         {/* Tab navigation */}
         <div className="mb-6">
-          <div className="flex border-b border-border"> {/* Use theme border */}
+          <div className="flex border-b border-border">
             {(['chat', 'bullets', 'oer'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 font-medium transition-colors ${
                   activeTab === tab
-                    ? 'border-b-1 border-border text-ring' // Use theme primary
-                    : 'text-muted-foreground hover:text-foreground' // Use theme muted/foreground
+                    ? 'border-b-1 border-border text-ring'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {tab === 'chat'
@@ -183,7 +175,7 @@ export default function Home() {
         <Card className="p-4 md:p-6 bg-card text-card-foreground border border-ring shadow-sm">
           {activeTab === 'chat' && (
             <ChatInterface
-              onBulletGenerated={handleBulletGenerated} // Pass the correct handler
+              onBulletGenerated={handleBulletGenerated}
               rankCategory={rankCategory}
               rank={rank}
               // You can pass initialMessages to ChatInterface if needed
