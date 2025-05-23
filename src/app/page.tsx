@@ -3,18 +3,19 @@
 
 import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import ChatInterface from '@/components/chat/ChatInterface';
 import BulletEditor from '@/components/bullets/BulletEditor';
 import OERPreview from '@/components/oer/OERPreview';
 import RankSelector from '@/components/ui/RankSelector';
 import { Card } from '@/components/ui/card';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browserDetection';
-import { InAppBrowserWarning } from '@/components/InAppBrowserWarning';
+import { InAppBrowserWarning } from '@/components/debug/InAppBrowserWarning';
 import { Loader2 } from 'lucide-react';
 
 import type { Bullet } from '@/types/Bullet';
-
 export default function Home() {
+  const router = useRouter();
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState<'chat' | 'bullets' | 'oer'>('chat');
   const [bullets, setBullets] = useState<(Bullet & { id: string })[]>([]);
@@ -115,7 +116,9 @@ export default function Home() {
   }
 
   // Show sign-in if not authenticated
-  if (!session) {
+if (!session) {
+    // Redirect to your proper sign-in page
+    router.push('/auth/signin'); // <--- THIS IS THE LINE TO CHANGE
     return (
       <main className="min-h-screen p-4 md:p-8 bg-background text-foreground">
         <div className="mx-auto max-w-6xl">
