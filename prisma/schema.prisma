@@ -1,12 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" // Corrected provider
+  provider = "postgresql" // or whatever database you're using
   url      = env("DATABASE_URL")
 }
 
@@ -16,12 +15,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String? @db.Text
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -40,11 +39,12 @@ model Session {
 model User {
   id            String    @id @default(cuid())
   name          String?
-  email         String    @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
+  work          Work[]    // Add this relation to connect User to Work
 }
 
 model VerificationToken {
@@ -55,15 +55,17 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Your existing models can go here
 model Work {
   id        String   @id @default(cuid())
-  title     String
+  userId    String   // This field name should match what's used in the relation
+  userEmail String?  // Optional: if you want to store email separately
+  content   Json     // Stores the user's bullets, preferences, etc.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  content   Json
-  userId    String
-  userEmail String
-  user      User    @relation(fields: [userid], references: [id])
-  // Add your work-specific fields
+  
+  // Fix: Make sure the field name matches exactly
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([updatedAt])
 }
