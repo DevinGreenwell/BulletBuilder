@@ -1,9 +1,10 @@
-import NextAuth, { type NextAuthOptions, DefaultSession } from 'next-auth';
+// src/lib/auth.ts
+import { type NextAuthOptions, DefaultSession } from 'next-auth';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from './prisma';
 import GoogleProvider from 'next-auth/providers/google';
 import { customEmailProvider } from './customEmailProvider';
-import type { Provider } from 'next-auth/providers';
+import type { Provider } from 'next-auth/providers/index';
 
 // Debugging logs for environment variables
 console.log('EMAIL_SERVER_HOST:', process.env.EMAIL_SERVER_HOST);
@@ -33,7 +34,6 @@ export const authOptions: NextAuthOptions = {
         },
       },
     }),
-    // Properly type the custom email provider
     customEmailProvider({
       server: {
         host: process.env.EMAIL_SERVER_HOST,
@@ -44,7 +44,7 @@ export const authOptions: NextAuthOptions = {
         }
       },
       from: process.env.EMAIL_FROM || 'noreply@uscg-eval-app.com',
-    }) as Provider, // Use proper Provider type instead of any
+    }) as unknown as Provider, // Use proper Provider type instead of any
   ],
   pages: {
     signIn: '/auth/signin',
@@ -66,5 +66,3 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET!,
 };
-
-export default NextAuth(authOptions);

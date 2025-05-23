@@ -2,10 +2,10 @@ import NextAuth from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import GitHubProvider from 'next-auth/providers/github';
 import EmailProvider from 'next-auth/providers/email';
-
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
 import { sendVerificationEmail } from '@/lib/auth-email';
+
 
 /* ──────────────────────────────────────────────────────────────── */
 /* Internal config (NOT exported)                                   */
