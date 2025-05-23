@@ -1,4 +1,7 @@
 {
-  "extends": "next/core-web-vitals",
-  "ignorePatterns": ["src/generated/**/*"]
+  "extends": ["next/core-web-vitals"],
+  "ignorePatterns": ["src/generated/**/*"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "warn"
+  }
 }
