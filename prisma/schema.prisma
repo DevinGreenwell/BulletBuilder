@@ -64,5 +64,6 @@ model Work {
   content   Json
   userId    String
   userEmail String
+  user      User    @relation(fields: [userid], references: [id])
   // Add your work-specific fields
 }
