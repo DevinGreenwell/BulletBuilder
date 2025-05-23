@@ -9,7 +9,7 @@ import OERPreview from '@/components/oer/OERPreview';
 import RankSelector from '@/components/ui/RankSelector';
 import { Card } from '@/components/ui/card';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browserDetection';
-import { InAppBrowserWarning } from '@/components/InAppBrowserWarning';
+import { InAppBrowserWarning } from '@/components/debug/InAppBrowserWarning';
 import { useRouter } from 'next/navigation';
 
 import type { Bullet } from '@/types/Bullet';
