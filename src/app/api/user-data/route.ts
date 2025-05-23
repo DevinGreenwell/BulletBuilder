@@ -1,7 +1,7 @@
-// src/app/api/user-data/route.ts
+// At the top of src/app/api/user-data/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route'; // Adjust path as needed
+import { authOptions } from '@/lib/auth'; // Import from shared config, NOT from route
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
