@@ -3,6 +3,7 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from './prisma';
 import GoogleProvider from 'next-auth/providers/google';
 import { customEmailProvider } from './customEmailProvider';
+import type { Provider } from 'next-auth/providers';
 
 // Debugging logs for environment variables
 console.log('EMAIL_SERVER_HOST:', process.env.EMAIL_SERVER_HOST);
@@ -32,6 +33,7 @@ export const authOptions: NextAuthOptions = {
         },
       },
     }),
+    // Properly type the custom email provider
     customEmailProvider({
       server: {
         host: process.env.EMAIL_SERVER_HOST,
@@ -42,7 +44,7 @@ export const authOptions: NextAuthOptions = {
         }
       },
       from: process.env.EMAIL_FROM || 'noreply@uscg-eval-app.com',
-    }) as any, // Type assertion to satisfy TypeScript
+    }) as Provider, // Use proper Provider type instead of any
   ],
   pages: {
     signIn: '/auth/signin',
