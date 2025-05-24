@@ -1,524 +1,699 @@
+// src/components/bullets/BulletEditor.tsx
+
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { getWork, saveWork, WorkRecord } from '@/lib/work';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import React from 'react';
 
-// Removed from the top-level
-
-
-// Removed duplicate Bullet type import to avoid conflict with local declaration
-interface Bullet {
+export interface Bullet {
   id: string;
   competency: string;
   content: string;
   isApplied: boolean;
   category: string;
+  createdAt: number;
+  source?: string;
 }
 
-interface BulletEditorProps {
-  initialBullets?: Bullet[]; // Now uses the imported Bullet type
-  onBulletsChanged?: (bullets: Bullet[]) => void;
+export interface BulletEditorProps {
+  initialBullets: Bullet[];
+  onBulletsChanged: (updatedBullets: Bullet[]) => void;
+  rankCategory?: 'Officer' | 'Enlisted';
+  rank?: string;
 }
 
-export default function BulletEditor({ initialBullets, onBulletsChanged }: BulletEditorProps) {
+interface FilterState {
+  competency: string;
+  category: string;
+  applied: string;
+  searchTerm: string;
+}
+
+// Competency definitions matching ChatInterface
+const competencyDefinitions = {
+  officer: {
+    competencies: [
+      'Planning & Preparedness',
+      'Using Resources',
+      'Results/Effectiveness',
+      'Adaptability',
+      'Professional Competence',
+      'Speaking and Listening',
+      'Writing',
+      'Looking Out For Others',
+      'Developing Others',
+      'Directing Others',
+      'Teamwork',
+      'Workplace Climate',
+      'Evaluations',
+      'Initiative',
+      'Judgment',
+      'Responsibility',
+      'Professional Presence',
+      'Health and Well Being',
+    ],
+    categories: {
+      'Performance of Duties': [
+        'Planning & Preparedness',
+        'Using Resources',
+        'Results/Effectiveness',
+        'Adaptability',
+        'Professional Competence',
+        'Speaking and Listening',
+        'Writing',
+      ],
+      'Leadership Skills': [
+        'Looking Out For Others',
+        'Developing Others',
+        'Directing Others',
+        'Teamwork',
+        'Workplace Climate',
+        'Evaluations',
+      ],
+      'Personal and Professional Qualities': [
+        'Initiative',
+        'Judgment',
+        'Responsibility',
+        'Professional Presence',
+        'Health and Well Being',
+      ],
+    },
+  },
+  enlisted: {
+    e4e6: {
+      competencies: [
+        'Military Bearing',
+        'Customs, Courtesies, and Traditions',
+        'Quality of Work',
+        'Technical Proficiency',
+        'Initiative',
+        'Decision Making and Problem Solving',
+        'Military Readiness',
+        'Self-Awareness and Learning',
+        'Team Building',
+        'Respect for Others',
+        'Accountability and Responsibility',
+        'Influencing Others',
+        'Effective Communication',
+      ],
+      categories: {
+        Military: [
+          'Military Bearing',
+          'Customs, Courtesies, and Traditions',
+        ],
+        Performance: [
+          'Quality of Work',
+          'Technical Proficiency',
+          'Initiative',
+        ],
+        'Professional Qualities': [
+          'Decision Making and Problem Solving',
+          'Military Readiness',
+          'Self-Awareness and Learning',
+          'Team Building',
+        ],
+        Leadership: [
+          'Respect for Others',
+          'Accountability and Responsibility',
+          'Influencing Others',
+          'Effective Communication',
+        ],
+      },
+    },
+    e7e8: {
+      competencies: [
+        'Military Bearing',
+        'Customs, Courtesies, and Traditions',
+        'Quality of Work',
+        'Technical Proficiency',
+        'Initiative',
+        'Strategic Thinking',
+        'Decision Making and Problem Solving',
+        'Military Readiness',
+        'Self-Awareness and Learning',
+        'Partnering',
+        'Respect for Others',
+        'Accountability and Responsibility',
+        'Workforce Management',
+        'Effective Communication',
+        'Chiefs Mess Leadership and Participation',
+      ],
+      categories: {
+        Military: [
+          'Military Bearing',
+          'Customs, Courtesies, and Traditions',
+        ],
+        Performance: [
+          'Quality of Work',
+          'Technical Proficiency',
+          'Initiative',
+          'Strategic Thinking',
+        ],
+        'Professional Qualities': [
+          'Decision Making and Problem Solving',
+          'Military Readiness',
+          'Self-Awareness and Learning',
+          'Partnering',
+        ],
+        Leadership: [
+          'Respect for Others',
+          'Accountability and Responsibility',
+          'Workforce Management',
+          'Effective Communication',
+          'Chiefs Mess Leadership and Participation',
+        ],
+      },
+    },
+  },
+};
+
+export default function BulletEditor({
+  initialBullets,
+  onBulletsChanged,
+  rankCategory = 'Officer',
+  rank = 'O3'
+}: BulletEditorProps) {
+  // State
   const [bullets, setBullets] = useState<Bullet[]>(initialBullets || []);
-  
-  // State for new bullet form
-const [showNewBulletForm, setShowNewBulletForm] = useState(false);
-const [newBullet, setNewBullet] = useState({
-  competency: '',
-  content: '',
-  category: ''
-});
+  const [filters, setFilters] = useState<FilterState>({
+    competency: 'All',
+    category: 'All',
+    applied: 'All',
+    searchTerm: ''
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<{ [key: string]: string }>({});
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newBulletForm, setNewBulletForm] = useState({
+    competency: '',
+    content: '',
+    category: ''
+  });
 
-const { data: session, status } = useSession();
-
-if (status === 'loading') {
-  return <p>Loading…</p>;
-}
-if (!session) {
-  return <p>Please sign in to manage your bullets.</p>;
-}
-  
-  // State for inline editing
-  const [editingBullet, setEditingBullet] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
-  const editInputRef = useRef<HTMLTextAreaElement>(null);
-  
-  // State for collapsed categories
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
-  
-  // Competency options by category
-  const competencyOptions = {
-    'Performance of Duties': [
-      'Planning & Preparedness', 'Using Resources', 'Results/Effectiveness',
-      'Adaptability', 'Professional Competence', 'Speaking and Listening', 'Writing'
-    ],
-    'Leadership Skills': [
-      'Looking Out For Others', 'Developing Others', 'Directing Others',
-      'Teamwork', 'Workplace Climate', 'Evaluations'
-    ],
-    'Personal and Professional Qualities': [
-      'Initiative', 'Judgment', 'Responsibility',
-      'Professional Presence', 'Health and Well Being'
-    ],
-    // Add enlisted categories and competencies as needed
-  };
-  
-  // Available categories
-  const categories = Object.keys(competencyOptions);
-
-  // Update bullets when initialBullets changes
-  useEffect(() => {
-    console.log("BulletEditor: initialBullets changed:", initialBullets);
-    if (initialBullets && initialBullets.length > 0) {
-      setBullets(initialBullets);
+  // Get current competencies and categories based on rank
+  const getCurrentCompetencies = useCallback(() => {
+    if (rankCategory === 'Officer') {
+      return competencyDefinitions.officer.competencies;
     }
+    if (rank === 'E7' || rank === 'E8') {
+      return competencyDefinitions.enlisted.e7e8.competencies;
+    }
+    return competencyDefinitions.enlisted.e4e6.competencies;
+  }, [rankCategory, rank]);
+
+  const getCurrentCategories = useCallback(() => {
+    if (rankCategory === 'Officer') {
+      return Object.keys(competencyDefinitions.officer.categories);
+    }
+    if (rank === 'E7' || rank === 'E8') {
+      return Object.keys(competencyDefinitions.enlisted.e7e8.categories);
+    }
+    return Object.keys(competencyDefinitions.enlisted.e4e6.categories);
+  }, [rankCategory, rank]);
+
+  const getCategoryFromCompetency = useCallback((competency: string) => {
+    if (rankCategory === 'Officer') {
+      for (const [cat, list] of Object.entries(competencyDefinitions.officer.categories)) {
+        if (list.includes(competency)) return cat;
+      }
+    } else {
+      const def = rank === 'E7' || rank === 'E8'
+        ? competencyDefinitions.enlisted.e7e8.categories
+        : competencyDefinitions.enlisted.e4e6.categories;
+      for (const [cat, list] of Object.entries(def)) {
+        if (list.includes(competency)) return cat;
+      }
+    }
+    return 'Other';
+  }, [rankCategory, rank]);
+
+  // Update internal state when initialBullets change from parent
+  useEffect(() => {
+    console.log("BulletEditor: initialBullets updated:", initialBullets);
+    setBullets(initialBullets || []);
   }, [initialBullets]);
 
-  // Load persisted work only on initial mount and only if no initialBullets
+  // Reset form when rank category changes
   useEffect(() => {
-    // Only load from storage if no initialBullets provided
-    if (!initialBullets || initialBullets.length === 0) {
-      getWork()
-        .then((records: WorkRecord[]) => {
-          if (records.length > 0) {
-            const saved = (records[0] as any).content as Bullet[];
-            console.log("BulletEditor: Loaded bullets from storage:", saved);
-            setBullets(saved);
-            onBulletsChanged?.(saved);
-          }
-        })
-        .catch((err) => console.error('Failed to load bullets:', err));
-    }
-  }, []); // Empty dependency array means this only runs once on mount
-
-  // Save bullets whenever they change
-  const handleChange = (newBullets: Bullet[]) => {
-    setBullets(newBullets);
-    onBulletsChanged?.(newBullets);
-    saveWork(newBullets).catch((err) => console.error('Failed to save bullets:', err));
-  };
-  
-  // Start editing a bullet
-  const startEditing = (bulletId: string, currentContent: string) => {
-    setEditingBullet(bulletId);
-    setEditText(currentContent);
-    // Focus the input after it renders
-    setTimeout(() => {
-      if (editInputRef.current) {
-        editInputRef.current.focus();
-      }
-    }, 10);
-  };
-  
-  // Cancel editing
-  const cancelEditing = () => {
-    setEditingBullet(null);
-    setEditText('');
-  };
-  
-  // Save edited bullet
-  const saveEditing = () => {
-    if (editingBullet && editText.trim()) {
-      handleEditSave(editingBullet, editText);
-      setEditingBullet(null);
-      setEditText('');
-    }
-  };
-
-  // Handlers for edit, delete, toggle
-  const handleEditSave = (id: string, newContent: string) => {
-    const updated = bullets.map((b) => (b.id === id ? { ...b, content: newContent } : b));
-    handleChange(updated);
-  };
-
-  const handleDelete = (id: string) => {
-    handleChange(bullets.filter((b) => b.id !== id));
-  };
-
-  const handleToggleApply = (id: string) => {
-    handleChange(
-      bullets.map((b) => (b.id === id ? { ...b, isApplied: !b.isApplied } : b))
-    );
-  };
-  
-  // Function to generate a new bullet ID
-  const generateBulletId = () => `bullet_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  
-  // Handle category selection in new bullet form
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const category = e.target.value;
-    // Reset competency when category changes
-    setNewBullet({
-      ...newBullet,
-      category,
-      competency: competencyOptions[category as keyof typeof competencyOptions]?.[0] || ''
-    });
-  };
-  
-  // Handle adding a new bullet
-  const handleAddBullet = () => {
-    if (!newBullet.category || !newBullet.competency || !newBullet.content.trim()) {
-      alert('Please fill out all fields');
-      return;
-    }
-    
-    const bullet: Bullet = {
-      id: generateBulletId(),
-      competency: newBullet.competency,
-      content: newBullet.content.trim(),
-      isApplied: false,
-      category: newBullet.category
-    };
-    
-    const updatedBullets = [...bullets, bullet];
-    handleChange(updatedBullets);
-    
-    // Reset form
-    setNewBullet({
+    setNewBulletForm({
       competency: '',
       content: '',
       category: ''
     });
-    setShowNewBulletForm(false);
-  };
+    setFilters({
+      competency: 'All',
+      category: 'All',
+      applied: 'All',
+      searchTerm: ''
+    });
+  }, [rankCategory, rank]);
 
-  // Toggle category collapse state
-  const toggleCategoryCollapse = (category: string) => {
-    setCollapsedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
-  };
-
-  // Move bullet up in the list
-  const moveBulletUp = (bulletId: string) => {
-    const index = bullets.findIndex(b => b.id === bulletId);
-    if (index <= 0) return; // Already at top or not found
+  // Memoized competencies and categories for current rank
+  const { competencies, categories } = useMemo(() => {
+    const currentCompetencies = getCurrentCompetencies();
+    const currentCategories = getCurrentCategories();
     
-    const newBullets = [...bullets];
-    const temp = newBullets[index];
-    newBullets[index] = newBullets[index - 1];
-    newBullets[index - 1] = temp;
-    
-    handleChange(newBullets);
-  };
-
-  // Move bullet down in the list
-  const moveBulletDown = (bulletId: string) => {
-    const index = bullets.findIndex(b => b.id === bulletId);
-    if (index === -1 || index === bullets.length - 1) return; // Not found or already at bottom
-    
-    const newBullets = [...bullets];
-    const temp = newBullets[index];
-    newBullets[index] = newBullets[index + 1];
-    newBullets[index + 1] = temp;
-    
-    handleChange(newBullets);
-  };
-
-  // Group bullets by category
-  const grouped = bullets.reduce((acc, bullet) => {
-    const cat = bullet.category || getCategoryFromCompetency(bullet.competency);
-    acc[cat] = acc[cat] || [];
-    acc[cat].push(bullet);
-    return acc;
-  }, {} as Record<string, Bullet[]>);
-  
-  // Define the correct category order
-  const categoryOrder = [
-    'Performance of Duties',
-    'Leadership Skills',
-    'Personal and Professional Qualities',
-    'Military',
-    'Performance',
-    'Professional Qualities',
-    'Leadership',
-    'Other'
-  ];
-  
-  // Log for debugging
-  console.log("Categories before sorting:", Object.keys(grouped));
-  console.log("Defined category order:", categoryOrder);
-
-  function getCategoryFromCompetency(competency: string): string {
-    // Map of competencies to categories - using exact names from categoryOrder
-    const competencyToCategory: Record<string, string> = {
-      // Performance of Duties competencies
-      'Planning & Preparedness': 'Performance of Duties',
-      'Using Resources': 'Performance of Duties',
-      'Results/Effectiveness': 'Performance of Duties',
-      'Adaptability': 'Performance of Duties',
-      'Professional Competence': 'Performance of Duties',
-      'Speaking and Listening': 'Performance of Duties',
-      'Writing': 'Performance of Duties',
-      
-      // Leadership Skills competencies
-      'Looking Out For Others': 'Leadership Skills',
-      'Developing Others': 'Leadership Skills',
-      'Directing Others': 'Leadership Skills',
-      'Teamwork': 'Leadership Skills',
-      'Workplace Climate': 'Leadership Skills',
-      'Evaluations': 'Leadership Skills',
-      
-      // Personal and Professional Qualities competencies
-      'Initiative': 'Personal and Professional Qualities',
-      'Judgment': 'Personal and Professional Qualities',
-      'Responsibility': 'Personal and Professional Qualities',
-      'Professional Presence': 'Personal and Professional Qualities',
-      'Health and Well Being': 'Personal and Professional Qualities',
+    return {
+      competencies: ['All', ...currentCompetencies],
+      categories: ['All', ...currentCategories]
     };
-    
-    return competencyToCategory[competency] || 'Other';
-  }
+  }, [getCurrentCompetencies, getCurrentCategories]);
+
+  // Memoized filtered bullets
+  const filteredBullets = useMemo(() => {
+    return bullets.filter(bullet => {
+      const matchesCompetency = filters.competency === 'All' || bullet.competency === filters.competency;
+      const matchesCategory = filters.category === 'All' || bullet.category === filters.category;
+      const matchesApplied = filters.applied === 'All' ||
+        (filters.applied === 'Applied' && bullet.isApplied) ||
+        (filters.applied === 'Not Applied' && !bullet.isApplied);
+      const matchesSearch = !filters.searchTerm ||
+        bullet.content.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        bullet.competency.toLowerCase().includes(filters.searchTerm.toLowerCase());
+
+      return matchesCompetency && matchesCategory && matchesApplied && matchesSearch;
+    });
+  }, [bullets, filters]);
+
+  // Helper function to safely update bullets and notify parent
+  const updateBulletsAndNotifyParent = useCallback((updatedBullets: Bullet[]) => {
+    console.log("BulletEditor: Updating bullets:", updatedBullets.length);
+    setBullets(updatedBullets);
+    onBulletsChanged(updatedBullets);
+    setError(null);
+  }, [onBulletsChanged]);
+
+  // Handler for toggling bullet applied status
+  const toggleBulletApplied = useCallback(async (id: string) => {
+    try {
+      console.log("BulletEditor: Toggling applied status for bullet:", id);
+      const updatedBullets = bullets.map(bullet =>
+        bullet.id === id ? { ...bullet, isApplied: !bullet.isApplied } : bullet
+      );
+      await updateBulletsAndNotifyParent(updatedBullets);
+    } catch (err) {
+      setError(`Failed to update bullet status: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }, [bullets, updateBulletsAndNotifyParent]);
+
+  // Handler for updating bullet content with debounce
+  const updateBulletContent = useCallback(async (id: string, newContent: string) => {
+    try {
+      setPendingChanges(prev => ({ ...prev, [id]: newContent }));
+      
+      const updatedBullets = bullets.map(bullet =>
+        bullet.id === id ? { ...bullet, content: newContent } : bullet
+      );
+      
+      await updateBulletsAndNotifyParent(updatedBullets);
+      setPendingChanges(prev => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+    } catch (err) {
+      setError(`Failed to update bullet content: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }, [bullets, updateBulletsAndNotifyParent]);
+
+  // Handler for deleting bullets
+  const deleteBullet = useCallback(async (id: string) => {
+    if (isDeleting) return;
+
+    try {
+      setIsDeleting(true);
+      if (window.confirm('Are you sure you want to delete this bullet?')) {
+        console.log("BulletEditor: Deleting bullet:", id);
+        const updatedBullets = bullets.filter(bullet => bullet.id !== id);
+        await updateBulletsAndNotifyParent(updatedBullets);
+      }
+    } catch (err) {
+      setError(`Failed to delete bullet: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [bullets, isDeleting, updateBulletsAndNotifyParent]);
+
+  // Handler for adding new bullet
+  const addNewBullet = useCallback(async () => {
+    if (!newBulletForm.competency || !newBulletForm.content.trim()) {
+      setError('Please select a competency and enter bullet content');
+      return;
+    }
+
+    try {
+      const category = getCategoryFromCompetency(newBulletForm.competency);
+      const newBullet: Bullet = {
+        id: `manual_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        competency: newBulletForm.competency,
+        content: newBulletForm.content.trim(),
+        isApplied: false,
+        category: category,
+        createdAt: Date.now(),
+        source: 'manual'
+      };
+
+      const updatedBullets = [...bullets, newBullet];
+      await updateBulletsAndNotifyParent(updatedBullets);
+      
+      // Reset form
+      setNewBulletForm({
+        competency: '',
+        content: '',
+        category: ''
+      });
+      setShowAddForm(false);
+      setError(null);
+    } catch (err) {
+      setError(`Failed to add bullet: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }, [newBulletForm, bullets, getCategoryFromCompetency, updateBulletsAndNotifyParent]);
+
+  // Handler for exporting bullets
+  const exportBullets = useCallback(() => {
+    try {
+      console.log("BulletEditor: Exporting bullets");
+      const appliedBullets = bullets.filter(b => b.isApplied);
+
+      if (appliedBullets.length === 0) {
+        setError('No applied bullets to export.');
+        return;
+      }
+
+      // Group bullets by category and competency
+      const categorizedBullets: { [key: string]: { [key: string]: Bullet[] } } = {};
+      appliedBullets.forEach(bullet => {
+        if (!categorizedBullets[bullet.category]) {
+          categorizedBullets[bullet.category] = {};
+        }
+        if (!categorizedBullets[bullet.category][bullet.competency]) {
+          categorizedBullets[bullet.category][bullet.competency] = [];
+        }
+        categorizedBullets[bullet.category][bullet.competency].push(bullet);
+      });
+
+      // Create markdown content
+      const evalType = rankCategory === 'Officer' ? 'Officer' : `${rank} Enlisted`;
+      let exportContent = `# USCG ${evalType} Evaluation Bullets\n\n`;
+      Object.entries(categorizedBullets).forEach(([category, competencies]) => {
+        exportContent += `## ${category}\n\n`;
+        Object.entries(competencies).forEach(([competency, bullets]) => {
+          exportContent += `### ${competency}\n\n`;
+          bullets.forEach(bullet => {
+            exportContent += `- ${bullet.content}\n`;
+          });
+          exportContent += '\n';
+        });
+      });
+
+      // Create and download file
+      const blob = new Blob([exportContent], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `uscg_${rankCategory.toLowerCase()}_${rank}_bullets.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setError(null);
+    } catch (err) {
+      setError(`Failed to export bullets: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }, [bullets, rankCategory, rank]);
+
+  // Handler for clearing all bullets
+  const clearAllBullets = useCallback(async () => {
+    if (isDeleting) return;
+
+    try {
+      setIsDeleting(true);
+      if (window.confirm('Are you sure you want to delete ALL bullets? This cannot be undone.')) {
+        console.log("BulletEditor: Clearing all bullets");
+        await updateBulletsAndNotifyParent([]);
+      }
+    } catch (err) {
+      setError(`Failed to clear bullets: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [isDeleting, updateBulletsAndNotifyParent]);
+
+  // Filter handlers
+  const handleFilterChange = useCallback((key: keyof FilterState, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Performance Bullets</h2>
-        <Button 
-          onClick={() => setShowNewBulletForm(!showNewBulletForm)}
-          variant={showNewBulletForm ? "outline" : "default"}
-        >
-          {showNewBulletForm ? 'Cancel' : 'Add Bullet Manually'}
-        </Button>
-      </div>
-      
-      {/* New Bullet Form */}
-      {showNewBulletForm && (
-        <div className="mb-6 p-4 border border-ring rounded-md bg-card">
-          <h3 className="text-lg font-semibold mb-3">Add New Bullet</h3>
+    <div className="space-y-6" role="region" aria-label="Bullet Editor">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+        <h2 className="text-xl font-semibold">
+          Manage {rankCategory} {rankCategory === 'Enlisted' ? rank : ''} Bullets ({bullets.length})
+        </h2>
+        
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            variant="outline"
+            aria-label="Add new bullet manually"
+          >
+            {showAddForm ? 'Cancel' : 'Add Bullet'}
+          </Button>
           
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium mb-1">
-                Category:
-              </label>
-              <select
-                id="category"
-                value={newBullet.category}
-                onChange={handleCategoryChange}
-                className="w-full rounded-md border border-ring bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select Category</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="competency" className="block text-sm font-medium mb-1">
-                Competency:
-              </label>
-              <select
-                id="competency"
-                value={newBullet.competency}
-                onChange={(e) => setNewBullet({...newBullet, competency: e.target.value})}
-                className="w-full rounded-md border border-ring bg-background px-3 py-2 text-sm"
-                disabled={!newBullet.category}
-              >
-                <option value="">Select Competency</option>
-                {newBullet.category && competencyOptions[newBullet.category as keyof typeof competencyOptions]?.map(comp => (
-                  <option key={comp} value={comp}>{comp}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="content" className="block text-sm font-medium mb-1">
-                Bullet Content:
-              </label>
-              <textarea
-                id="content"
-                value={newBullet.content}
-                onChange={(e) => setNewBullet({...newBullet, content: e.target.value})}
-                rows={4}
-                placeholder="Enter bullet content..."
-                className="w-full rounded-md border border-ring bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleAddBullet}
-                disabled={!newBullet.category || !newBullet.competency || !newBullet.content.trim()}
-              >
-                Add Bullet
-              </Button>
-            </div>
-          </div>
+          <Button
+            onClick={exportBullets}
+            variant="secondary"
+            disabled={!bullets.some(b => b.isApplied)}
+            aria-label="Export applied bullets to markdown file"
+          >
+            Export Applied Bullets
+          </Button>
+          
+          <Button
+            onClick={clearAllBullets}
+            variant="destructive"
+            disabled={bullets.length === 0 || isDeleting}
+            aria-label="Clear all bullets"
+          >
+            {isDeleting ? 'Clearing...' : 'Clear All Bullets'}
+          </Button>
         </div>
+      </div>
+
+      {error && (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      {/* Log sorted categories for verification */}
-      <div style={{ display: 'none' }}>
-        {Object.entries(grouped)
-          .sort(([catA], [catB]) => {
-            const indexA = categoryOrder.indexOf(catA);
-            const indexB = categoryOrder.indexOf(catB);
-            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-          })
-          .map(([category], index) => {
-            console.log(`${index + 1}. ${category}`);
-            return null;
-          })
-        }
-      </div>
-      {Object.keys(grouped).length === 0 ? (
-        <div className="text-center p-6 bg-background border border-ring rounded-md">
-          <p className="text-muted-foreground">
-            No bullets yet. Use the chat interface to generate bullets or add them manually.
-          </p>
-        </div>
-      ) : (
-        // Sort categories according to the defined order
-        Object.entries(grouped)
-          .sort(([catA], [catB]) => {
-            const indexA = categoryOrder.indexOf(catA);
-            const indexB = categoryOrder.indexOf(catB);
-            // If category isn't in the list, put it at the end
-            console.log(`Sorting: ${catA} (index: ${indexA}) vs ${catB} (index: ${indexB})`);
-            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-          })
-          .map(([category, bulletsList]) => (
-          <div key={category} className="mb-6 border border-ring rounded-md overflow-hidden">
-            {/* Category Header with Collapse Toggle */}
-            <div 
-              className="flex justify-between items-center p-3 bg-muted cursor-pointer"
-              onClick={() => toggleCategoryCollapse(category)}
-            >
-              <h3 className="text-lg font-semibold flex items-center">
-                {collapsedCategories[category] ? 
-                  <ChevronRight className="h-5 w-5 mr-1" /> : 
-                  <ChevronDown className="h-5 w-5 mr-1" />}
-                {category} <span className="ml-2 text-sm text-muted-foreground">({bulletsList.length} bullets)</span>
-              </h3>
+      {/* Add new bullet form */}
+      {showAddForm && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-lg font-semibold mb-4">Add New Bullet</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Competency <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={newBulletForm.competency}
+                  onValueChange={(value) => setNewBulletForm(prev => ({ 
+                    ...prev, 
+                    competency: value,
+                    category: getCategoryFromCompetency(value)
+                  }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select competency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getCurrentCompetencies().map(comp => (
+                      <SelectItem key={comp} value={comp}>
+                        {comp}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Bullet Content <span className="text-red-500">*</span>
+                </label>
+                <Textarea
+                  value={newBulletForm.content}
+                  onChange={(e) => setNewBulletForm(prev => ({ ...prev, content: e.target.value }))}
+                  placeholder="Enter the bullet content..."
+                  className="min-h-[100px]"
+                />
+              </div>
+              
+              {newBulletForm.competency && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Category</label>
+                  <Input
+                    value={getCategoryFromCompetency(newBulletForm.competency)}
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <Button onClick={addNewBullet} disabled={!newBulletForm.competency || !newBulletForm.content.trim()}>
+                  Add Bullet
+                </Button>
+                <Button variant="outline" onClick={() => setShowAddForm(false)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
-            
-            {/* Bullets List - Collapsible */}
-            {!collapsedCategories[category] && (
-              <div className="space-y-3 p-3">
-                {bulletsList.map((bullet, index) => (
-                  <div
-                    key={bullet.id}
-                    className={`p-3 border rounded-md relative ${
-                      bullet.isApplied ? 'bg-ring/25 border-ring' : 'bg-background border-ring'
-                    }`}
-                  >
-                    <div className="text-sm text-muted-foreground mb-1">{bullet.competency}</div>
-                    
-                    {editingBullet === bullet.id ? (
-                      <div className="mb-4">
-                        <textarea 
-                          ref={editInputRef}
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                          className="w-full rounded-md border border-ring bg-background px-3 py-2 text-sm"
-                          rows={4}
-                          onKeyDown={(e) => {
-                            // Save on Ctrl+Enter
-                            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                              e.preventDefault();
-                              saveEditing();
-                            }
-                            // Cancel on Escape
-                            if (e.key === 'Escape') {
-                              e.preventDefault();
-                              cancelEditing();
-                            }
-                          }}
-                        />
-                        <div className="flex justify-end mt-2 space-x-2">
-                          <button
-                            onClick={cancelEditing}
-                            className="px-3 py-1 border border-ring rounded-md text-muted-foreground text-sm"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={saveEditing}
-                            className="px-3 py-1 bg-primary text-primary-foreground rounded-md text-sm"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mb-4 pr-16">{bullet.content}</div>
-                    )}
-                    
-                    {/* Bullet Actions - Only show when not editing */}
-                    {editingBullet !== bullet.id && (
-                      <div className="flex justify-between">
-                        <div>
-                          <button
-                            onClick={() => handleToggleApply(bullet.id)}
-                            className={`px-3 py-1 rounded-md mr-2 ${
-                              bullet.isApplied
-                                ? 'bg-green-600 text-white'
-                                : 'border border-green-600 text-green-600'
-                            }`}
-                          >
-                            {bullet.isApplied ? 'Applied' : 'Apply to Eval'}
-                          </button>
-                        </div>
-                        
-                        <div>
-                          <button
-                            onClick={() => startEditing(bullet.id, bullet.content)}
-                            className="px-3 py-1 text-blue-600 mr-2"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(bullet.id)}
-                            className="px-3 py-1 text-red-600"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Reordering buttons - only show when not editing */}
-                    {editingBullet !== bullet.id && (
-                      <div className="absolute right-2 top-2">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            moveBulletUp(bullet.id);
-                          }}
-                          className="p-1 text-muted-foreground hover:text-foreground"
-                          disabled={index === 0}
-                          title="Move up"
-                        >
-                          <ArrowUp className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            moveBulletDown(bullet.id);
-                          }}
-                          className="p-1 text-muted-foreground hover:text-foreground"
-                          disabled={index === bulletsList.length - 1}
-                          title="Move down"
-                        >
-                          <ArrowDown className="h-4 w-4" />
-                        </button>
-                      </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filters row */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3" role="search">
+        <div>
+          <Input
+            placeholder="Search bullets..."
+            value={filters.searchTerm}
+            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+            className="w-full"
+            aria-label="Search bullets"
+          />
+        </div>
+        
+        <div>
+          <Select
+            value={filters.competency}
+            onValueChange={(value) => handleFilterChange('competency', value)}
+          >
+            <SelectTrigger aria-label="Filter by competency">
+              <SelectValue placeholder="Filter by Competency" />
+            </SelectTrigger>
+            <SelectContent>
+              {competencies.map(comp => (
+                <SelectItem key={comp} value={comp}>
+                  {comp}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Select
+            value={filters.category}
+            onValueChange={(value) => handleFilterChange('category', value)}
+          >
+            <SelectTrigger aria-label="Filter by category">
+              <SelectValue placeholder="Filter by Category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Select
+            value={filters.applied}
+            onValueChange={(value) => handleFilterChange('applied', value)}
+          >
+            <SelectTrigger aria-label="Filter by status">
+              <SelectValue placeholder="Filter by Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Bullets</SelectItem>
+              <SelectItem value="Applied">Applied Only</SelectItem>
+              <SelectItem value="Not Applied">Not Applied Only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Bullets list */}
+      <div role="list" aria-label="Bullets list">
+        {filteredBullets.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center text-muted-foreground">
+              {bullets.length === 0 ? (
+                <p>No bullets found. Use the Generate Bullets tab to create some evaluation bullets or click "Add Bullet" to manually create one.</p>
+              ) : (
+                <p>No bullets match your current filters.</p>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredBullets.map(bullet => (
+              <Card key={bullet.id} role="listitem">
+                <div className="p-4 flex flex-col sm:flex-row justify-between border-b">
+                  <div>
+                    <div className="text-sm font-medium">{bullet.competency}</div>
+                    <div className="text-xs text-muted-foreground">{bullet.category}</div>
+                    {bullet.source && (
+                      <div className="text-xs text-muted-foreground">Source: {bullet.source}</div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                  
+                  <div className="mt-2 sm:mt-0 flex flex-wrap gap-2">
+                    <Button
+                      variant={bullet.isApplied ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleBulletApplied(bullet.id)}
+                      aria-pressed={bullet.isApplied}
+                      aria-label={`${bullet.isApplied ? 'Remove from' : 'Add to'} applied bullets`}
+                    >
+                      {bullet.isApplied ? "Applied" : "Apply"}
+                    </Button>
+                    
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteBullet(bullet.id)}
+                      disabled={isDeleting}
+                      aria-label="Delete bullet"
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                  </div>
+                </div>
+                
+                <CardContent className="p-4">
+                  <Textarea
+                    defaultValue={bullet.content}
+                    onChange={(e) => setPendingChanges(prev => ({ ...prev, [bullet.id]: e.target.value }))}
+                    onBlur={(e) => updateBulletContent(bullet.id, e.target.value)}
+                    className="min-h-[100px] w-full"
+                    aria-label={`Edit bullet content for ${bullet.competency}`}
+                  />
+                  
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    Created: {new Date(bullet.createdAt).toLocaleString()}
+                    {pendingChanges[bullet.id] && (
+                      <span className="ml-2 italic">(unsaved changes)</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        ))
-      )}
+        )}
+      </div>
     </div>
   );
 }

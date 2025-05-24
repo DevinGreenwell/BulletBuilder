@@ -32,7 +32,7 @@ const Tab: React.FC<TabProps> = ({ id, isActive, onClick, label }) => (
     className={cn(
       'px-4 py-2 font-medium transition-colors',
       isActive 
-        ? 'border-b-2 border-primary text-primary' 
+        ? 'border-b-2 border-ring text-ring' 
         : 'text-muted-foreground hover:text-foreground'
     )}
     role="tab"
@@ -153,17 +153,14 @@ export default function Home() {
     }
   }, [bullets, updateBullets, handleTabChange]);
 
-  const handleBulletsChanged = useCallback((updatedBulletsFromEditor: any[]) => {
+  const handleBulletsChanged = useCallback((updatedBulletsFromEditor: Bullet[]) => {
     console.log("page.tsx: handleBulletsChanged received from BulletEditor:", updatedBulletsFromEditor);
     
     // Ensure all bullets have required properties
     const completeUpdatedBullets: Bullet[] = updatedBulletsFromEditor.map(bullet => ({
-      id: bullet.id,
-      content: bullet.content,
-      competency: bullet.competency,
-      category: bullet.category || '',
-      createdAt: bullet.createdAt ?? Date.now(),
-      isApplied: bullet.isApplied ?? false
+      ...bullet,
+      createdAt: bullet.createdAt || Date.now(),
+      isApplied: Boolean(bullet.isApplied)
     }));
     
     updateBullets(completeUpdatedBullets);
@@ -202,9 +199,11 @@ export default function Home() {
           <BulletEditor
             initialBullets={bullets.map(bullet => ({
               ...bullet,
-              isApplied: Boolean(bullet.isApplied)
+              isApplied: bullet.isApplied ?? false
             }))}
             onBulletsChanged={handleBulletsChanged}
+            rankCategory={rankCategory}
+            rank={rank}
           />
         );
       case 'oer':
@@ -212,8 +211,7 @@ export default function Home() {
           <OERPreview
             bullets={bullets.map(bullet => ({
               ...bullet,
-              id: bullet.id || '', // Ensure id is always a string
-              isApplied: Boolean(bullet.isApplied) // Ensure isApplied is always a boolean
+              isApplied: bullet.isApplied ?? false
             }))}
             rankCategory={rankCategory}
             rank={rank}
@@ -276,7 +274,7 @@ export default function Home() {
         )}
 
         {/* Rank Selector */}
-        <div className="mb-6 p-4 md:p-6 bg-card text-card-foreground border border-ring rounded-md shadow-sm">
+        <div className="mb-6 p-4 md:p-6 bg-card text-card-foreground border border-border rounded-md shadow-sm">
           <ErrorBoundary FallbackComponent={ErrorFallback}>
             <div>
               <RankSelector
@@ -291,7 +289,7 @@ export default function Home() {
 
         {/* Tabs Navigation */}
         <nav className="mb-6">
-          <div className="flex border-b border-ring" role="tablist">
+          <div className="flex border-b border-border" role="tablist">
             {tabs.map(tab => (
               <Tab
                 key={tab.id}
@@ -305,7 +303,7 @@ export default function Home() {
         </nav>
 
         {/* Main Content Area */}
-        <div className="p-4 md:p-6 bg-card text-card-foreground border border-ring rounded-md shadow-sm">
+        <div className="p-4 md:p-6 bg-card text-card-foreground border border-border rounded-md shadow-sm">
           {error && (
             <div className="mb-4">
               <Alert variant="destructive">
