@@ -197,10 +197,7 @@ export default function Home() {
       case 'bullets':
         return (
           <BulletEditor
-            initialBullets={bullets.map(bullet => ({
-              ...bullet,
-              isApplied: bullet.isApplied ?? false
-            }))}
+            initialBullets={bullets.map(bullet => ({ ...bullet, isApplied: Boolean(bullet.isApplied) }))}
             onBulletsChanged={handleBulletsChanged}
             rankCategory={rankCategory}
             rank={rank}
@@ -209,10 +206,7 @@ export default function Home() {
       case 'oer':
         return (
           <OERPreview
-            bullets={bullets.map(bullet => ({
-              ...bullet,
-              isApplied: bullet.isApplied ?? false
-            }))}
+            bullets={bullets.map(bullet => ({ ...bullet, isApplied: Boolean(bullet.isApplied) }))}
             rankCategory={rankCategory}
             rank={rank}
           />
@@ -274,22 +268,27 @@ export default function Home() {
         )}
 
         {/* Rank Selector */}
-        <div className="mb-6 p-4 md:p-6 bg-card text-card-foreground border border-ring rounded-md shadow-sm">
-          <ErrorBoundary FallbackComponent={ErrorFallback}>
-            <div>
-              <RankSelector
-                selectedRankCategory={rankCategory}
-                selectedRank={rank}
-                onRankCategoryChange={handleRankCategoryChange}
-                onRankChange={handleRankChange}
-              />
-            </div>
+        <div className="mb-6 p-4 md:p-6 bg-card text-card-foreground border border-border rounded-md shadow-sm">
+          <ErrorBoundary 
+            fallbackRender={({ error }) => (
+              <div className="p-4 border border-red-200 rounded-md bg-red-50 text-red-900">
+                <h3 className="text-lg font-semibold mb-2">Rank Selector Error</h3>
+                <p className="text-sm">{error.message || 'An unknown error occurred'}</p>
+              </div>
+            )}
+          >
+            <RankSelector
+              selectedRankCategory={rankCategory}
+              selectedRank={rank}
+              onRankCategoryChange={handleRankCategoryChange}
+              onRankChange={handleRankChange}
+            />
           </ErrorBoundary>
         </div>
 
         {/* Tabs Navigation */}
         <nav className="mb-6">
-          <div className="flex border-b border-ring" role="tablist">
+          <div className="flex border-b border-border" role="tablist">
             {tabs.map(tab => (
               <Tab
                 key={tab.id}
@@ -303,7 +302,7 @@ export default function Home() {
         </nav>
 
         {/* Main Content Area */}
-        <div className="p-4 md:p-6 bg-card text-card-foreground border border-ring rounded-md shadow-sm">
+        <div className="p-4 md:p-6 bg-card text-card-foreground border border-border rounded-md shadow-sm">
           {error && (
             <div className="mb-4">
               <Alert variant="destructive">
@@ -318,10 +317,15 @@ export default function Home() {
             id={`${activeTab}-panel`}
             aria-labelledby={`${activeTab}-tab`}
           >
-            <ErrorBoundary FallbackComponent={ErrorFallback}>
-              <div>
-                {renderActiveTabContent()}
-              </div>
+            <ErrorBoundary 
+              fallbackRender={({ error }) => (
+                <div className="p-4 border border-red-200 rounded-md bg-red-50 text-red-900">
+                  <h3 className="text-lg font-semibold mb-2">Component Error</h3>
+                  <p className="text-sm">{error.message || 'An unknown error occurred'}</p>
+                </div>
+              )}
+            >
+              {renderActiveTabContent()}
             </ErrorBoundary>
           </div>
         </div>
@@ -337,10 +341,14 @@ export default function Home() {
             )}
           </p>
           <div className="mt-2">
-            <ErrorBoundary FallbackComponent={ErrorFallback}>
-              <div>
-                <BuyMeCoffeeButton />
-              </div>
+            <ErrorBoundary 
+              fallbackRender={({ error }) => (
+                <div className="p-2 border border-red-200 rounded-md bg-red-50 text-red-900 text-xs">
+                  <p>Button Error: {error.message}</p>
+                </div>
+              )}
+            >
+              <BuyMeCoffeeButton />
             </ErrorBoundary>
           </div>
         </footer>
