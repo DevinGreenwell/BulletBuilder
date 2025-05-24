@@ -184,21 +184,22 @@ export default function Home() {
 
   // Function to render the content for the active tab
 const renderActiveTabContent = () => {
-  return (
-    <div className="p-8">
-      <h2 className="text-xl font-bold mb-4">Tab: {activeTab}</h2>
-      <div className="space-y-4">
-        <p>This is a simple placeholder for the {activeTab} tab.</p>
-        <p>If this works without errors, the issue is in one of your tab components.</p>
-        <div className="p-4 bg-gray-100 rounded">
-          <p><strong>Active Tab:</strong> {activeTab}</p>
-          <p><strong>Rank Category:</strong> {rankCategory}</p>
-          <p><strong>Rank:</strong> {rank}</p>
-          <p><strong>Bullets Count:</strong> {bullets.length}</p>
-        </div>
-      </div>
-    </div>
-  );
+  switch (activeTab) {
+    case 'chat':
+      return (
+        <ChatInterface
+          onBulletGenerated={handleBulletGenerated}
+          rankCategory={rankCategory}
+          rank={rank}
+        />
+      );
+    case 'bullets':
+      return <div className="p-8"><h2>BulletEditor (Placeholder)</h2></div>;
+    case 'oer':
+      return <div className="p-8"><h2>OERPreview (Placeholder)</h2></div>;
+    default:
+      return <div>Content not found</div>;
+  }
 };
 
   // Show loading state while data is being loaded
