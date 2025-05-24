@@ -1,4 +1,4 @@
-// RankSelector.tsx
+// RankSelector.tsx - COMPRESSED VERSION
 import React from 'react';
 
 type RankSelectorProps = {
@@ -35,30 +35,30 @@ const RankSelector: React.FC<RankSelectorProps> = ({
   ];
 
   return (
-    <div className="mb-4 p-4 bg-card rounded border-none">
-      <h3 className="text-xl font-medium mb-2">Select Your Rank</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="p-2 bg-card rounded border-none"> {/* COMPRESSED: Removed mb-4, reduced padding from p-4 to p-2 */}
+      <h3 className="text-lg font-medium mb-2">Select Your Rank</h3> {/* COMPRESSED: Reduced from text-xl to text-lg */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3"> {/* COMPRESSED: Reduced gap from gap-4 to gap-3 */}
         <div>
-          <label className="block text-sm font-medium text-primary-foreground mb-1">
+          <label className="block text-xs font-medium text-primary-foreground mb-1"> {/* COMPRESSED: Reduced from text-sm to text-xs */}
             Category
           </label>
           <select
             value={selectedRankCategory}
             onChange={(e) => onRankCategoryChange(e.target.value)}
-            className="w-full p-2 border border-ring bg-background rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-1.5 border border-ring bg-background rounded text-sm shadow-sm focus:ring-blue-500 focus:border-blue-500" // COMPRESSED: Reduced padding from p-2 to p-1.5, added text-sm
           >
             <option value="Officer">Officer</option>
             <option value="Enlisted">Enlisted</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
+          <label className="block text-xs font-medium text-foreground mb-1"> {/* COMPRESSED: Reduced from text-sm to text-xs */}
             Grade
           </label>
           <select
             value={selectedRank}
             onChange={(e) => onRankChange(e.target.value)}
-            className="w-full p-2 border border-ring bg-background rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-1.5 border border-ring bg-background rounded text-sm shadow-sm focus:ring-blue-500 focus:border-blue-500" // COMPRESSED: Reduced padding from p-2 to p-1.5, added text-sm
           >
             {selectedRankCategory === 'Officer'
               ? officerRanks.map((rank) => (
