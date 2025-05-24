@@ -452,7 +452,7 @@ export default function OERPreview({
 
       {/* No bullets message */}
       {appliedBullets.length === 0 && (
-        <div className="text-center p-6 bg-card border border-border rounded-md shadow">
+        <div className="text-center p-6 bg-card border border-ring rounded-md shadow">
           <p className="text-destructive-foreground">No bullets have been applied yet.</p>
           <p className="text-sm text-muted-foreground mt-1">
             Go to the 'Manage Bullets' tab to apply bullets first.
@@ -500,7 +500,7 @@ export default function OERPreview({
               {categoryBullets.map(bullet => (
                 <div
                   key={bullet.id}
-                  className="flex items-start gap-3 p-3 border border-ring rounded-md bg-background shadow-inner"
+                  className="flex items-start gap-3 p-3 border border-border rounded-md bg-background shadow-inner"
                 >
                   <div className="flex-grow">
                     <div className="text-xs text-muted-foreground mb-1">{bullet.competency}</div>
@@ -533,7 +533,7 @@ export default function OERPreview({
             </div>
 
             {/* Summary section */}
-            <div className="mt-4 border-t border-green pt-4">
+            <div className="mt-4 border-t border-green-50 pt-4">
               <Button
                 onClick={() => handleSummarizeCategory(category, categoryBullets)}
                 disabled={!isWeightValidForSummarize || isLoadingSummary || categoryBullets.length === 0}
