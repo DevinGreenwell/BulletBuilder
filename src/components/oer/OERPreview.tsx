@@ -188,15 +188,19 @@ export default function OERPreview({
 
   // Generate report document with better validation and debugging
   const generateReportDocument = useCallback(async () => {
+    // Get fresh data from the persistence system
+    const currentEvaluationData = userData.evaluationData;
+    
     // More detailed validation with debugging
     const requiredFields = {
-      officerName: evaluationData.officerName,
-      startDate: evaluationData.startDate,
-      endDate: evaluationData.endDate,
-      unitName: evaluationData.unitName,
-      position: evaluationData.position
+      officerName: currentEvaluationData.officerName,
+      startDate: currentEvaluationData.startDate,
+      endDate: currentEvaluationData.endDate,
+      unitName: currentEvaluationData.unitName,
+      position: currentEvaluationData.position
     };
 
+    console.log('PDF Generation - Fresh evaluation data:', currentEvaluationData);
     console.log('PDF Generation - Required fields check:', requiredFields);
 
     const missingFields = Object.entries(requiredFields)
@@ -221,22 +225,35 @@ export default function OERPreview({
       setError(null);
 
       const payload = {
-        officerName: evaluationData.officerName,
-        unitName: evaluationData.unitName,
-        position: evaluationData.position,
-        startDate: evaluationData.startDate,
-        endDate: evaluationData.endDate,
+        officerName: currentEvaluationData.officerName,
+        unitName: currentEvaluationData.unitName,
+        position: currentEvaluationData.position,
+        startDate: currentEvaluationData.startDate,
+        endDate: currentEvaluationData.endDate,
+        bullets: appliedBullets, // Move bullets to top level
+        rankCategory,
+        rank,
+        // Keep structured content for potential future use
         structuredContent: {
           bullets: appliedBullets,
-          evaluationData,
+          evaluationData: currentEvaluationData,
           bulletWeights,
           summaries
-        },
-        rankCategory,
-        rank
+        }
       };
 
-      console.log('PDF Generation - Payload:', payload);
+      console.log('PDF Generation - Detailed Payload Check:', {
+        officerName: payload.officerName,
+        unitName: payload.unitName,
+        position: payload.position,
+        startDate: payload.startDate,
+        endDate: payload.endDate,
+        rankCategory: payload.rankCategory,
+        rank: payload.rank,
+        appliedBulletsCount: appliedBullets.length,
+        hasStructuredContent: !!payload.structuredContent,
+        fullPayload: payload
+      });
 
       const response = await fetch('/api/oer', {
         method: 'POST',
@@ -259,7 +276,7 @@ export default function OERPreview({
       const a = document.createElement('a');
       a.href = url;
       const filePrefix = rankCategory === 'Officer' ? 'OER' : `EER_${rank}`;
-      const safeName = evaluationData.officerName.replace(/[^a-zA-Z0-9]/g, '_') || 'Report';
+      const safeName = currentEvaluationData.officerName.replace(/[^a-zA-Z0-9]/g, '_') || 'Report';
       const dateSuffix = new Date().toISOString().split('T')[0];
       a.download = `${filePrefix}_${safeName}_${dateSuffix}.pdf`;
       document.body.appendChild(a);
@@ -275,7 +292,7 @@ export default function OERPreview({
       setIsGeneratingDoc(false);
     }
   }, [
-    evaluationData,
+    userData.evaluationData,
     groupedBulletsByCategory.errors,
     appliedBullets,
     bulletWeights,
