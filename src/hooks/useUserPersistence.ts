@@ -1,16 +1,7 @@
 // src/hooks/useUserPersistence.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-
-interface Bullet {
-  id: string;
-  competency: string;
-  content: string;
-  isApplied: boolean;
-  category: string;
-  createdAt: number;
-  source?: string;
-}
+import type { Bullet } from '@/types/bullets';
 
 interface UserPreferences {
   rankCategory: 'Officer' | 'Enlisted';
@@ -19,8 +10,17 @@ interface UserPreferences {
   competencyPreferences: string[];
 }
 
+interface DisplayMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  competency?: string;
+  timestamp: number;
+  type?: 'bullet' | 'question' | 'error';
+}
+
 interface ChatSession {
-  messages: any[];
+  messages: DisplayMessage[];
   lastCompetency: string;
 }
 
@@ -66,6 +66,10 @@ export function useUserPersistence() {
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [workId, setWorkId] = useState<string | null>(null);
+  
+  // Use refs to prevent infinite re-renders
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isSavingRef = useRef(false);
 
   // Load user data when session is available
   const loadUserData = useCallback(async () => {
@@ -89,15 +93,25 @@ export function useUserPersistence() {
         throw new Error(`Failed to load user data: ${response.status}`);
       }
 
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const latestWork = data[0];
+      const data: unknown = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const latestWork = data[0] as { id: string; content: UserData };
         setWorkId(latestWork.id);
         
-        // Parse the stored data
+        // Merge saved data with defaults to ensure all fields exist
         const parsedData: UserData = {
-          ...defaultUserData,
-          ...latestWork.content
+          bullets: latestWork.content.bullets || defaultUserData.bullets,
+          preferences: {
+            ...defaultUserData.preferences,
+            ...latestWork.content.preferences
+          },
+          chatSessions: latestWork.content.chatSessions || defaultUserData.chatSessions,
+          evaluationData: {
+            ...defaultUserData.evaluationData,
+            ...latestWork.content.evaluationData
+          },
+          bulletWeights: latestWork.content.bulletWeights || defaultUserData.bulletWeights,
+          summaries: latestWork.content.summaries || defaultUserData.summaries
         };
         
         setUserData(parsedData);
@@ -113,13 +127,14 @@ export function useUserPersistence() {
     }
   }, [session, status]);
 
-  // Save user data
+  // Save user data with debouncing
   const saveUserData = useCallback(async (data: Partial<UserData>) => {
-    if (status !== 'authenticated' || !session?.user?.id) {
+    if (status !== 'authenticated' || !session?.user?.id || isSavingRef.current) {
       return;
     }
 
     try {
+      isSavingRef.current = true;
       setSaveStatus('saving');
       setError(null);
 
@@ -129,6 +144,7 @@ export function useUserPersistence() {
       const payload = {
         userId: session.user.id,
         content: updatedData,
+        title: 'USCG Evaluation Data',
         ...(workId ? { id: workId } : {})
       };
 
@@ -142,7 +158,7 @@ export function useUserPersistence() {
         throw new Error(`Failed to save user data: ${response.status}`);
       }
 
-      const responseData = await response.json();
+      const responseData: { id?: string } = await response.json();
       if (!workId && responseData.id) {
         setWorkId(responseData.id);
       }
@@ -153,72 +169,89 @@ export function useUserPersistence() {
       console.error('Error saving user data:', err);
       setError(err instanceof Error ? err.message : 'Failed to save user data');
       setSaveStatus('error');
+    } finally {
+      isSavingRef.current = false;
     }
   }, [session, status, userData, workId]);
 
-  // Auto-save with debouncing
-  const [pendingChanges, setPendingChanges] = useState<Partial<UserData> | null>(null);
+  // Debounced save function
+  const debouncedSave = useCallback((changes: Partial<UserData>) => {
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
 
-  useEffect(() => {
-    if (!pendingChanges) return;
-
-    const timeoutId = setTimeout(() => {
-      saveUserData(pendingChanges);
-      setPendingChanges(null);
+    // Set new timeout
+    saveTimeoutRef.current = setTimeout(() => {
+      saveUserData(changes);
     }, 1000); // 1 second debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [pendingChanges, saveUserData]);
-
-  // Queue changes for auto-save
-  const queueSave = useCallback((changes: Partial<UserData>) => {
-    setPendingChanges(prev => ({ ...prev, ...changes }));
-  }, []);
+  }, [saveUserData]);
 
   // Specific helper functions
   const updateBullets = useCallback((bullets: Bullet[]) => {
-    queueSave({ bullets });
-  }, [queueSave]);
+    const changes = { bullets };
+    setUserData(prev => ({ ...prev, ...changes }));
+    debouncedSave(changes);
+  }, [debouncedSave]);
 
   const updatePreferences = useCallback((preferences: Partial<UserPreferences>) => {
-    queueSave({ 
+    const changes = { 
       preferences: { 
         ...userData.preferences, 
         ...preferences 
       } 
-    });
-  }, [queueSave, userData.preferences]);
+    };
+    setUserData(prev => ({ ...prev, ...changes }));
+    debouncedSave(changes);
+  }, [debouncedSave, userData.preferences]);
 
   const updateEvaluationData = useCallback((evaluationData: Partial<UserData['evaluationData']>) => {
-    queueSave({ 
+    const changes = { 
       evaluationData: { 
         ...userData.evaluationData, 
         ...evaluationData 
       } 
-    });
-  }, [queueSave, userData.evaluationData]);
+    };
+    setUserData(prev => ({ ...prev, ...changes }));
+    debouncedSave(changes);
+  }, [debouncedSave, userData.evaluationData]);
 
   const updateBulletWeights = useCallback((bulletWeights: { [bulletId: string]: string }) => {
-    queueSave({ bulletWeights });
-  }, [queueSave]);
+    const changes = { bulletWeights };
+    setUserData(prev => ({ ...prev, ...changes }));
+    debouncedSave(changes);
+  }, [debouncedSave]);
 
   const updateSummaries = useCallback((summaries: { [category: string]: string }) => {
-    queueSave({ summaries });
-  }, [queueSave]);
+    const changes = { summaries };
+    setUserData(prev => ({ ...prev, ...changes }));
+    debouncedSave(changes);
+  }, [debouncedSave]);
 
-  const saveChatSession = useCallback((sessionId: string, session: ChatSession) => {
-    queueSave({ 
+  const saveChatSession = useCallback((sessionId: string, chatSession: ChatSession) => {
+    const changes = { 
       chatSessions: { 
         ...userData.chatSessions, 
-        [sessionId]: session 
+        [sessionId]: chatSession 
       } 
-    });
-  }, [queueSave, userData.chatSessions]);
+    };
+    setUserData(prev => ({ ...prev, ...changes }));
+    debouncedSave(changes);
+  }, [debouncedSave, userData.chatSessions]);
 
   // Load data on session change
   useEffect(() => {
     loadUserData();
   }, [loadUserData]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     // Data
