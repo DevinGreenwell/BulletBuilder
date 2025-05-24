@@ -360,7 +360,7 @@ export default function OERPreview({
       )}
 
       {/* Form section */}
-      <section className="bg-card border border-border rounded-md p-6 mb-6 shadow" aria-label="Report Information">
+      <section className="bg-card border border-ring rounded-md p-6 mb-6 shadow" aria-label="Report Information">
         <h3 className="text-lg font-semibold mb-4 text-card-foreground">Report Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Member Name */}
@@ -475,10 +475,10 @@ export default function OERPreview({
         return (
           <section
             key={category}
-            className="mb-8 p-4 border border-border rounded-lg bg-card shadow-sm"
+            className="mb-8 p-4 border border-ring rounded-lg bg-card shadow-sm"
             aria-labelledby={`category-${category}`}
           >
-            <div className="flex justify-between items-center mb-4 border-b border-border pb-2">
+            <div className="flex justify-between items-center mb-4 border-b border-ring pb-2">
               <h3 id={`category-${category}`} className="text-lg font-semibold text-card-foreground">
                 {category}
               </h3>
@@ -500,7 +500,7 @@ export default function OERPreview({
               {categoryBullets.map(bullet => (
                 <div
                   key={bullet.id}
-                  className="flex items-start gap-3 p-3 border border-border rounded-md bg-background shadow-inner"
+                  className="flex items-start gap-3 p-3 border border-ring rounded-md bg-background shadow-inner"
                 >
                   <div className="flex-grow">
                     <div className="text-xs text-muted-foreground mb-1">{bullet.competency}</div>
@@ -533,7 +533,7 @@ export default function OERPreview({
             </div>
 
             {/* Summary section */}
-            <div className="mt-4 border-t border-border pt-4">
+            <div className="mt-4 border-t border-green pt-4">
               <Button
                 onClick={() => handleSummarizeCategory(category, categoryBullets)}
                 disabled={!isWeightValidForSummarize || isLoadingSummary || categoryBullets.length === 0}
@@ -589,7 +589,7 @@ export default function OERPreview({
               <span>Generating PDF...</span>
             </div>
           ) : (
-            `Generate ${rankCategory === 'Officer' ? 'OER' : 'Evaluation'} Document`
+            `Generate ${rankCategory === 'Officer' ? 'OSF' : 'Eval'} Document`
           )}
         </Button>
       </div>
