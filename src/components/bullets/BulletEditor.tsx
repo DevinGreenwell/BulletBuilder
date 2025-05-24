@@ -1,4 +1,5 @@
-// src/components/bullets/BulletEditor.tsx
+// BulletEditor.tsx - VERSION WITHOUT RADIX SELECT COMPONENTS
+// This will help us identify if Select components are causing the React.Children.only error
 
 'use client';
 
@@ -7,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// import { Alert, AlertDescription } from '@/components/ui/alert';
+// REMOVED: import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// import { Alert, AlertDescription } from '@/components/ui/alert'; // REMOVED - using simple div instead
 import React from 'react';
 
 export interface Bullet {
@@ -487,11 +488,11 @@ export default function BulletEditor({
         </div>
       </div>
 
-{error && (
-  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-    <p className="text-sm text-red-700">{error}</p>
-  </div>
-)}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
 
       {/* Add new bullet form */}
       {showAddForm && (
@@ -503,25 +504,23 @@ export default function BulletEditor({
                 <label className="block text-sm font-medium mb-1">
                   Competency <span className="text-red-500">*</span>
                 </label>
-                <Select
+                {/* REPLACED Select with HTML select */}
+                <select
                   value={newBulletForm.competency}
-                  onValueChange={(value) => setNewBulletForm(prev => ({ 
+                  onChange={(e) => setNewBulletForm(prev => ({ 
                     ...prev, 
-                    competency: value,
-                    category: getCategoryFromCompetency(value)
+                    competency: e.target.value,
+                    category: getCategoryFromCompetency(e.target.value)
                   }))}
+                  className="w-full p-2 border border-input bg-background rounded-md text-sm"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select competency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getCurrentCompetencies().map(comp => (
-                      <SelectItem key={comp} value={comp}>
-                        {comp}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="">Select competency</option>
+                  {getCurrentCompetencies().map(comp => (
+                    <option key={comp} value={comp}>
+                      {comp}
+                    </option>
+                  ))}
+                </select>
               </div>
               
               <div>
@@ -573,55 +572,49 @@ export default function BulletEditor({
         </div>
         
         <div>
-          <Select
+          {/* REPLACED Select with HTML select */}
+          <select
             value={filters.competency}
-            onValueChange={(value) => handleFilterChange('competency', value)}
+            onChange={(e) => handleFilterChange('competency', e.target.value)}
+            className="w-full p-2 border border-input bg-background rounded-md text-sm"
+            aria-label="Filter by competency"
           >
-            <SelectTrigger aria-label="Filter by competency">
-              <SelectValue placeholder="Filter by Competency" />
-            </SelectTrigger>
-            <SelectContent>
-              {competencies.map(comp => (
-                <SelectItem key={comp} value={comp}>
-                  {comp}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            {competencies.map(comp => (
+              <option key={comp} value={comp}>
+                {comp}
+              </option>
+            ))}
+          </select>
         </div>
         
         <div>
-          <Select
+          {/* REPLACED Select with HTML select */}
+          <select
             value={filters.category}
-            onValueChange={(value) => handleFilterChange('category', value)}
+            onChange={(e) => handleFilterChange('category', e.target.value)}
+            className="w-full p-2 border border-input bg-background rounded-md text-sm"
+            aria-label="Filter by category"
           >
-            <SelectTrigger aria-label="Filter by category">
-              <SelectValue placeholder="Filter by Category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map(cat => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
         </div>
         
         <div>
-          <Select
+          {/* REPLACED Select with HTML select */}
+          <select
             value={filters.applied}
-            onValueChange={(value) => handleFilterChange('applied', value)}
+            onChange={(e) => handleFilterChange('applied', e.target.value)}
+            className="w-full p-2 border border-input bg-background rounded-md text-sm"
+            aria-label="Filter by status"
           >
-            <SelectTrigger aria-label="Filter by status">
-              <SelectValue placeholder="Filter by Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Bullets</SelectItem>
-              <SelectItem value="Applied">Applied Only</SelectItem>
-              <SelectItem value="Not Applied">Not Applied Only</SelectItem>
-            </SelectContent>
-          </Select>
+            <option value="All">All Bullets</option>
+            <option value="Applied">Applied Only</option>
+            <option value="Not Applied">Not Applied Only</option>
+          </select>
         </div>
       </div>
 
