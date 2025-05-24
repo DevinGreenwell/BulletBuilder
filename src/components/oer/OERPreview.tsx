@@ -1,8 +1,8 @@
-// src/components/oer/OERPreview.tsx
+// src/components/oer/OERPreview.tsx (with debugging)
 
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -62,9 +62,22 @@ export default function OERPreview({
   const bulletWeights = userData.bulletWeights;
   const summaries = userData.summaries;
 
+  // Debug: Log the evaluation data
+  useEffect(() => {
+    console.log('OER Preview - Current evaluation data:', evaluationData);
+    console.log('OER Preview - Form validation check:', {
+      officerName: evaluationData.officerName,
+      startDate: evaluationData.startDate,
+      endDate: evaluationData.endDate,
+      unitName: evaluationData.unitName,
+      position: evaluationData.position
+    });
+  }, [evaluationData]);
+
   // Handle input changes - these will auto-save via the persistence system
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    console.log(`OER Preview - Input changed: ${name} = "${value}"`);
     updateEvaluationData({ [name]: value });
   }, [updateEvaluationData]);
 
@@ -173,10 +186,27 @@ export default function OERPreview({
     }
   }, [rankCategory, rank, summaries, updateSummaries]);
 
-  // Generate report document
+  // Generate report document with better validation and debugging
   const generateReportDocument = useCallback(async () => {
-    if (!evaluationData.officerName || !evaluationData.startDate || !evaluationData.endDate) {
-      setError('Please fill in Member Name and Marking Period dates.');
+    // More detailed validation with debugging
+    const requiredFields = {
+      officerName: evaluationData.officerName,
+      startDate: evaluationData.startDate,
+      endDate: evaluationData.endDate,
+      unitName: evaluationData.unitName,
+      position: evaluationData.position
+    };
+
+    console.log('PDF Generation - Required fields check:', requiredFields);
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value || value.trim() === '')
+      .map(([field, _]) => field);
+
+    if (missingFields.length > 0) {
+      const errorMessage = `Please fill in the following required fields: ${missingFields.join(', ')}`;
+      console.log('PDF Generation - Missing fields:', missingFields);
+      setError(errorMessage);
       return;
     }
 
@@ -190,30 +220,35 @@ export default function OERPreview({
       setIsGeneratingDoc(true);
       setError(null);
 
+      const payload = {
+        officerName: evaluationData.officerName,
+        unitName: evaluationData.unitName,
+        position: evaluationData.position,
+        startDate: evaluationData.startDate,
+        endDate: evaluationData.endDate,
+        structuredContent: {
+          bullets: appliedBullets,
+          evaluationData,
+          bulletWeights,
+          summaries
+        },
+        rankCategory,
+        rank
+      };
+
+      console.log('PDF Generation - Payload:', payload);
+
       const response = await fetch('/api/oer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          officerName: evaluationData.officerName,
-          unitName: evaluationData.unitName,
-          position: evaluationData.position,
-          startDate: evaluationData.startDate,
-          endDate: evaluationData.endDate,
-          structuredContent: {
-            bullets: appliedBullets,
-            evaluationData,
-            bulletWeights,
-            summaries
-          },
-          rankCategory,
-          rank
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const contentType = response.headers.get('content-type');
         if (contentType?.includes('application/json')) {
           const errorData = await response.json();
+          console.log('PDF Generation - Server error:', errorData);
           throw new Error(errorData.error || `Failed to generate document (${response.status})`);
         }
         throw new Error(`Server error (${response.status}): Failed to generate document`);
@@ -232,6 +267,7 @@ export default function OERPreview({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setError(null);
+      console.log('PDF Generation - Success');
     } catch (err) {
       console.error('Error generating report document:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate document');
@@ -267,6 +303,17 @@ export default function OERPreview({
       : { reportTitle: enlistedTitle, evaluationCategories: enlistedCategories };
   }, [rankCategory, rank]);
 
+  // Check if all required fields are filled for the button state
+  const isFormValid = useMemo(() => {
+    return !!(
+      evaluationData.officerName?.trim() &&
+      evaluationData.startDate?.trim() &&
+      evaluationData.endDate?.trim() &&
+      evaluationData.unitName?.trim() &&
+      evaluationData.position?.trim()
+    );
+  }, [evaluationData]);
+
   return (
     <div className="max-w-4xl mx-auto p-4" role="main" aria-label={reportTitle}>
       <div className="flex justify-between items-center mb-4">
@@ -282,6 +329,19 @@ export default function OERPreview({
         </Alert>
       )}
 
+      {/* Debug info - remove this after fixing */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs">
+          <strong>Debug Info:</strong>
+          <br />Form Valid: {isFormValid ? 'Yes' : 'No'}
+          <br />Officer Name: "{evaluationData.officerName}"
+          <br />Start Date: "{evaluationData.startDate}"
+          <br />End Date: "{evaluationData.endDate}"
+          <br />Unit Name: "{evaluationData.unitName}"
+          <br />Position: "{evaluationData.position}"
+        </div>
+      )}
+
       {/* Form section */}
       <section className="bg-card border border-border rounded-md p-6 mb-6 shadow" aria-label="Report Information">
         <h3 className="text-lg font-semibold mb-4 text-card-foreground">Report Information</h3>
@@ -295,10 +355,11 @@ export default function OERPreview({
               id="officerName"
               name="officerName"
               className="bg-background border-input text-foreground"
-              value={evaluationData.officerName}
+              value={evaluationData.officerName || ''}
               onChange={handleInputChange}
               required
               aria-required="true"
+              placeholder="Enter full name"
             />
           </div>
 
@@ -311,10 +372,11 @@ export default function OERPreview({
               id="unitName"
               name="unitName"
               className="bg-background border-input text-foreground"
-              value={evaluationData.unitName}
+              value={evaluationData.unitName || ''}
               onChange={handleInputChange}
               required
               aria-required="true"
+              placeholder="Enter unit name"
             />
           </div>
 
@@ -327,10 +389,11 @@ export default function OERPreview({
               id="position"
               name="position"
               className="bg-background border-input text-foreground"
-              value={evaluationData.position}
+              value={evaluationData.position || ''}
               onChange={handleInputChange}
               required
               aria-required="true"
+              placeholder="Enter position title"
             />
           </div>
 
@@ -345,7 +408,7 @@ export default function OERPreview({
                 id="startDate"
                 name="startDate"
                 className="bg-background border-input text-foreground"
-                value={evaluationData.startDate}
+                value={evaluationData.startDate || ''}
                 onChange={handleInputChange}
                 required
                 aria-required="true"
@@ -360,7 +423,7 @@ export default function OERPreview({
                 id="endDate"
                 name="endDate"
                 className="bg-background border-input text-foreground"
-                value={evaluationData.endDate}
+                value={evaluationData.endDate || ''}
                 onChange={handleInputChange}
                 required
                 aria-required="true"
@@ -498,6 +561,7 @@ export default function OERPreview({
           disabled={
             isGeneratingDoc ||
             appliedBullets.length === 0 ||
+            !isFormValid ||
             Object.values(groupedBulletsByCategory.errors).some(e => !!e)
           }
           className="px-4 py-2"
