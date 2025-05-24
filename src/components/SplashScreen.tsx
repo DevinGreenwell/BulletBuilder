@@ -35,10 +35,10 @@ export default function SplashScreen({ children }: Props) {
 /* -----------------------  Extra widget  ------------------------ */
 export const BuyMeCoffeeButton: React.FC = () => (
   <a
-    href="https://www.buymeacoffee.com/bulletbuilder"
+    href="https://www.buymeacoffee.com/DevinGreenwell"
     target="_blank"
     rel="noopener noreferrer"
-    className="fixed bottom-4 right-4 z-50 rounded-xl bg-yellow-400 px-4 py-2 font-semibold text-background shadow-lg transition-colors hover:bg-yellow-300"
+    className="fixed bottom-4 right-4 z-50 rounded-xl bg-blue-400 px-4 py-2 font-semibold text-foreground shadow-lg transition-colors hover:bg-yellow-300"
   >
     Buy me a coffee
   </a>
