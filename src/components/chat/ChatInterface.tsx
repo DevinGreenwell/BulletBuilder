@@ -52,7 +52,7 @@ const bulletId = () =>
   `bullet_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
 const wrapWithNotice = (text: string) =>
-  `${text}\n\n(Bullet added to “Manage Bullets” tab.)`;
+  `${text}\n\n(Bullet added to "Manage Bullets" tab.)`;
 
 /* ─────────────────────────  component  ──────────────────────────────── */
 export default function ChatInterface({
@@ -263,177 +263,171 @@ export default function ChatInterface({
   }, [isLoading]);
 
   /* ───────────  bullet detection  ─────────── */
- // Fix the detectBullet function in ChatInterface.tsx
-// Around line 190
+  function detectBullet(text: string): { isBullet: boolean; bulletContent: string } {
+    // More precise detection logic - only detect very explicit bullet prefixes
+    const exactPrefixes = [
+      "OK, here's a draft bullet:",
+      "Here's a draft bullet:",
+      "Here's your bullet:",
+      'Bullet:'
+    ];
 
-function detectBullet(text: string): { isBullet: boolean; bulletContent: string } {
-  // More precise detection logic - only detect very explicit bullet prefixes
-  const exactPrefixes = [
-    "OK, here's a draft bullet:",
-    "Here's a draft bullet:",
-    "Here's your bullet:",
-    'Bullet:'
-  ];
+    // Only detect actual bullets (not questions or other responses)
+    if (text.includes('?') && !text.includes('bullet')) {
+      return { isBullet: false, bulletContent: '' };
+    }
 
-  // Only detect actual bullets (not questions or other responses)
-  if (text.includes('?') && !text.includes('bullet')) {
-    return { isBullet: false, bulletContent: '' };
-  }
-
-  // Check for exact prefixes only
-  for (const prefix of exactPrefixes) {
-    if (text.includes(prefix)) {
-      const parts = text.split(prefix);
-      if (parts.length > 1) {
-        // Take only what comes immediately after the prefix
-        let bulletText = parts[1].trim();
-        
-        // If there's a paragraph break, only take content before it
-        if (bulletText.includes('\n\n')) {
-          bulletText = bulletText.split('\n\n')[0].trim();
-        }
-        
-        if (bulletText) {
-          return { isBullet: true, bulletContent: bulletText };
+    // Check for exact prefixes only
+    for (const prefix of exactPrefixes) {
+      if (text.includes(prefix)) {
+        const parts = text.split(prefix);
+        if (parts.length > 1) {
+          // Take only what comes immediately after the prefix
+          let bulletText = parts[1].trim();
+          
+          // If there's a paragraph break, only take content before it
+          if (bulletText.includes('\n\n')) {
+            bulletText = bulletText.split('\n\n')[0].trim();
+          }
+          
+          if (bulletText) {
+            return { isBullet: true, bulletContent: bulletText };
+          }
         }
       }
     }
+
+    // No bullet found
+    return { isBullet: false, bulletContent: '' };
   }
 
-  // No bullet found
-  return { isBullet: false, bulletContent: '' };
-}
-
-/* ───────────  Speech-to-text handler  ─────────── */
-const handleSpeechTranscript = useCallback((transcript: string) => {
-  setInput(prev => {
-    // If there's already text, append with space
-    if (prev.trim()) {
-      return `${prev.trim()} ${transcript}`;
-    }
-    return transcript;
-  });
-  
-  // Focus the input after transcription completes
-  setTimeout(() => {
-    inputRef.current?.focus();
-  }, 100);
-}, []);
-
-  /* ───────────  API call  ─────────── */
-// Around line 275-300 in the handleSendMessage function
-
-// Add these debug console logs
-const handleSendMessage = async () => {
-  const clean = input.trim();
-  if (!clean || !selectedCompetency || isLoading) return;
-
-  setErrorMessage(null);
-
-  const userMsg: DisplayMessage = {
-    id: msgId(),
-    role: 'user',
-    content: clean,
-    competency: selectedCompetency,
-    timestamp: Date.now(),
-  };
-  setDisplayMessages(prev => [...prev, userMsg]);
-  setInput('');
-  setIsLoading(true);
-
-  const historyForApi: ApiMessage[] = [...displayMessages, userMsg].map(m => ({
-    role: m.role,
-    content: m.content,
-  }));
-
-  try {
-    const resp = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        history: historyForApi,
-        competency: selectedCompetency,
-        rankCategory,
-        rank,
-      }),
+  /* ───────────  Speech-to-text handler  ─────────── */
+  const handleSpeechTranscript = useCallback((transcript: string) => {
+    setInput(prev => {
+      // If there's already text, append with space
+      if (prev.trim()) {
+        return `${prev.trim()} ${transcript}`;
+      }
+      return transcript;
     });
     
-    // Check for timeout or network errors early
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      throw new Error(errorText || `Request failed with status: ${resp.status}`);
-    }
-    
-    // Parse response data
-    const data = await resp.json();
-    
-    // Validate the response data
-    if (!data.success) {
-      throw new Error(data.error || 'API returned unsuccessful response');
-    }
+    // Focus the input after transcription completes
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  }, []);
 
-    const text: string = data.response;
-    
-    // Check if response is empty
-    if (!text || typeof text !== 'string') {
-      throw new Error('Empty or invalid response from API');
-    }
-    
-    // Now handle bullet detection with the improved detection logic
-    const { isBullet, bulletContent } = detectBullet(text);
+  /* ───────────  API call  ─────────── */
+  const handleSendMessage = async () => {
+    const clean = input.trim();
+    if (!clean || !selectedCompetency || isLoading) return;
 
-    let finalContent = text;
-    let msgType: DisplayMessage['type'] = isBullet ? 'bullet' : 'question';
+    setErrorMessage(null);
 
-    // Clear follow-up question processing - only process as bullet if it's definitely a bullet
-    if (isBullet && bulletContent && bulletContent.length > 10 && onBulletGenerated) {
-      // Create a new bullet ID each time
-      const newBulletId = bulletId();
+    const userMsg: DisplayMessage = {
+      id: msgId(),
+      role: 'user',
+      content: clean,
+      competency: selectedCompetency,
+      timestamp: Date.now(),
+    };
+    setDisplayMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setIsLoading(true);
+
+    const historyForApi: ApiMessage[] = [...displayMessages, userMsg].map(m => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    try {
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          history: historyForApi,
+          competency: selectedCompetency,
+          rankCategory,
+          rank,
+        }),
+      });
       
-      // Create the bullet object with all required properties
-      const bulletObj = {
-        id: newBulletId,
-        competency: selectedCompetency,
-        content: bulletContent,
-        isApplied: false,
-        category: getCategoryFromCompetency(selectedCompetency),
-        createdAt: Date.now(),
-        source: userMsg.id,
-      };
+      // Check for timeout or network errors early
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(errorText || `Request failed with status: ${resp.status}`);
+      }
       
-      // Call the parent handler
-      onBulletGenerated(bulletObj);
-      finalContent = wrapWithNotice(text);
+      // Parse response data
+      const data = await resp.json();
+      
+      // Validate the response data
+      if (!data.success) {
+        throw new Error(data.error || 'API returned unsuccessful response');
+      }
+
+      const text: string = data.response;
+      
+      // Check if response is empty
+      if (!text || typeof text !== 'string') {
+        throw new Error('Empty or invalid response from API');
+      }
+      
+      // Now handle bullet detection with the improved detection logic
+      const { isBullet, bulletContent } = detectBullet(text);
+
+      let finalContent = text;
+      let msgType: DisplayMessage['type'] = isBullet ? 'bullet' : 'question';
+
+      // Clear follow-up question processing - only process as bullet if it's definitely a bullet
+      if (isBullet && bulletContent && bulletContent.length > 10 && onBulletGenerated) {
+        // Create a new bullet ID each time
+        const newBulletId = bulletId();
+        
+        // Create the bullet object with all required properties
+        const bulletObj = {
+          id: newBulletId,
+          competency: selectedCompetency,
+          content: bulletContent,
+          isApplied: false,
+          category: getCategoryFromCompetency(selectedCompetency),
+          createdAt: Date.now(),
+          source: userMsg.id,
+        };
+        
+        // Call the parent handler
+        onBulletGenerated(bulletObj);
+        finalContent = wrapWithNotice(text);
+      }
+      
+      // Add message to display history
+      setDisplayMessages(prev => [
+        ...prev,
+        {
+          id: msgId(),
+          role: 'assistant',
+          content: finalContent,
+          timestamp: Date.now(),
+          type: msgType,
+        },
+      ]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setErrorMessage(msg);
+      setDisplayMessages(prev => [
+        ...prev,
+        {
+          id: msgId(),
+          role: 'assistant',
+          content: `Error: ${msg}. Please try again.`,
+          timestamp: Date.now(),
+          type: 'error',
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Add message to display history
-    setDisplayMessages(prev => [
-      ...prev,
-      {
-        id: msgId(),
-        role: 'assistant',
-        content: finalContent,
-        timestamp: Date.now(),
-        type: msgType,
-      },
-    ]);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    setErrorMessage(msg);
-    setDisplayMessages(prev => [
-      ...prev,
-      {
-        id: msgId(),
-        role: 'assistant',
-        content: `Error: ${msg}. Please try again.`,
-        timestamp: Date.now(),
-        type: 'error',
-      },
-    ]);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   /* ───────────  reset chat  ─────────── */
   const handleReset = () => {
@@ -502,19 +496,19 @@ const handleSendMessage = async () => {
 
       {/* chat history */}
       <div
-  className={cn(
-    'mb-4 flex-1 overflow-y-auto rounded-md border border-ring bg-background p-4 text-card-foreground',
-    isMobile ? 'min-h-[200px] max-h-[350px] mobile-chat-container' : 'min-h-[300px] max-h-[500px]'
-  )}
->
+        className={cn(
+          'mb-4 flex-1 overflow-y-auto rounded-md border border-ring bg-background p-4 text-card-foreground',
+          isMobile ? 'min-h-[200px] max-h-[350px] mobile-chat-container' : 'min-h-[300px] max-h-[500px]'
+        )}
+      >
         {displayMessages.length === 0 ? (
           <div className="mt-10 px-4 text-center text-muted-foreground">
-  <p>Enter your achievement below or use the microphone to speak.</p>
-  <p className="mt-2 text-sm">
-    The assistant will refine it into a {' '}
-    {selectedCompetency} bullet for ({rankCategory} {rank}).
-  </p>
-</div>
+            <p>Enter your achievement below or use the microphone to speak.</p>
+            <p className="mt-2 text-sm">
+              The assistant will refine it into a {' '}
+              {selectedCompetency} bullet for ({rankCategory} {rank}).
+            </p>
+          </div>
         ) : (
           <div className="space-y-4">
             {displayMessages.map(m => (
@@ -566,65 +560,55 @@ const handleSendMessage = async () => {
         </div>
       )}
 
-      {/* input */}
-          {/* input w/ inline send-button */}
+      {/* input with speech-to-text button */}
+      <div className="relative mb-2">
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={`Describe your achievement for ${selectedCompetency}…`}
+          rows={isMobile ? 4 : 3}
+          disabled={isLoading}
+          className={cn(
+            'w-full resize-none rounded-md border border-input bg-background',
+            'pr-24 pb-2 pl-2 pt-2 text-foreground placeholder:text-muted-foreground',
+            isMobile ? 'input-container-mobile' : '',
+            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+          )}
+        />
+        
+        {/* Desktop Speech-to-text button (hidden on mobile) */}
+        <div className="absolute right-14 top-1/2 -translate-y-1/2 hidden md:block">
+          <SpeechToText 
+            onTranscript={handleSpeechTranscript} 
+            isDisabled={isLoading} 
+          />
+        </div>
+        
+        {/* Send button */}
+        <button
+          onClick={handleSendMessage}
+          disabled={isLoading || !input.trim()}
+          aria-label="Send message"
+          className={cn(
+            'absolute right-2 top-1/2 -translate-y-1/2 rounded p-2 mobile-tap-target',
+            'bg-primary text-primary-foreground transition-colors',
+            'hover:bg-primary/80 disabled:opacity-50',
+            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1'
+          )}
+        >
+          {isLoading
+            ? <Loader2 className="h-5 w-5 animate-spin" />
+            : <ArrowRightCircle className="h-5 w-5" />}
+        </button>
+      </div>
 
-{/* input with speech-to-text button */}
-<div className="relative mb-2">
-  <textarea
-    ref={inputRef}
-    value={input}
-    onChange={e => setInput(e.target.value)}
-    onKeyDown={handleKeyDown}
-    placeholder={`Describe your achievement for ${selectedCompetency}…`}
-    rows={isMobile ? 4 : 3}
-    disabled={isLoading}
-    className={cn(
-      'w-full resize-none rounded-md border border-input bg-background',
-      'pr-24 pb-2 pl-2 pt-2 text-foreground placeholder:text-muted-foreground', // Increased right padding for speech button
-      isMobile ? 'input-container-mobile' : '',
-      'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
-    )}
-  />
-  
-  {/* Desktop Speech-to-text button (hidden on mobile) */}
-  <div className="absolute right-14 top-1/2 -translate-y-1/2 hidden md:block">
-    <SpeechToText 
-      onTranscript={handleSpeechTranscript} 
-      isDisabled={isLoading} 
-    />
-  </div>
-  
-  {/* Send button */}
-  <button
-    onClick={handleSendMessage}
-    disabled={isLoading || !input.trim()}
-    aria-label="Send message"
-    className={cn(
-      'absolute right-2 top-1/2 -translate-y-1/2 rounded p-2 mobile-tap-target',
-      'bg-primary text-primary-foreground transition-colors',
-      'hover:bg-primary/80 disabled:opacity-50',
-      'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1'
-    )}
-  >
-    {isLoading
-      ? <Loader2 className="h-5 w-5 animate-spin" />
-      : <ArrowRightCircle className="h-5 w-5" />}
-  </button>
-</div>
-
-{/* Mobile Floating Speech Button (only visible on mobile) */}
-<MobileSpeechButton 
-  onTranscript={handleSpeechTranscript}
-  isDisabled={isLoading}
-/>
-
-{/* Mobile Floating Speech Button (only visible on mobile) */}
-<MobileSpeechButton 
-  onTranscript={handleSpeechTranscript}
-  isDisabled={isLoading}
-/>
-
+      {/* Mobile Floating Speech Button (only visible on mobile) - FIXED: Removed duplicate */}
+      <MobileSpeechButton 
+        onTranscript={handleSpeechTranscript}
+        isDisabled={isLoading}
+      />
     </div>
   );
 }
