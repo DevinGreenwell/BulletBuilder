@@ -4,8 +4,8 @@ import './globals.css';
 import AuthProvider from "@/components/auth/AuthProvider";
 import Header from "@/components/auth/Header";
 import MobileOptimization from "@/components/mobile/MobileOptimization";
-import { ThemeProvider } from "next-themes"; // Import ThemeProvider
-import { Toaster } from "@/components/ui/sonner"; // Import Toaster if you use it
+import { ThemeProvider } from "next-themes";
+import { Toaster } from "@/components/ui/sonner";
 import { Poppins } from 'next/font/google';
 import './globals.css';
 
@@ -20,15 +20,15 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'Bullet Builder 2.0',
   description: 'AI-Powered Evaluation Tool for USCG',
-  metadataBase: new URL('https://www.BulletBuilder.net'), // <- Your live domain
+  metadataBase: new URL('https://www.BulletBuilder.net'),
   openGraph: {
     title: 'Bullet Builder 2.0',
     description: 'AI-Powered Evaluation Tool for USCG',
-    url: 'https://www.BulletBuilder.net', // <- Your live domain
+    url: 'https://www.BulletBuilder.net',
     siteName: 'Bullet Builder 2.0',
     images: [
       {
-        url: '/logo.png', // or whatever path to your logo or preview image
+        url: '/logo.png',
         width: 267,
         height: 240,
         alt: 'Bullet Builder 2.0',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Bullet Builder 2.0',
     description: 'AI-Powered Evaluation Tool for USCG',
-    images: ['/logo.png'], // same as above
+    images: ['/logo.png'],
   },
 };
 
@@ -50,26 +50,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={poppins.className}>
-        <SplashScreen />
-        {/* Add ThemeProvider here */}
+        {/* Wrap everything inside ThemeProvider with a single element */}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <MobileOptimization>
-              {/* FIXED: Wrap all content in a single div */}
-              <div className="app-layout">
-                <Header /> {/* Theme Toggle will be added inside Header */}
-                <main className="min-h-screen bg-card text-foreground pt-4 transition-colors duration-200"> {/* Added transition */}
-                  {children}
-                </main>
-                <Toaster /> {/* Place Toaster inside ThemeProvider if used */}
-              </div>
-            </MobileOptimization>
-          </AuthProvider>
+          {/* Use a div or React Fragment as the single child */}
+          <div>
+            <SplashScreen />
+            <AuthProvider>
+              <MobileOptimization>
+                <div className="app-layout">
+                  <Header />
+                  <main className="min-h-screen bg-card text-foreground pt-4 transition-colors duration-200">
+                    {children}
+                  </main>
+                  <Toaster />
+                </div>
+              </MobileOptimization>
+            </AuthProvider>
+          </div>
         </ThemeProvider>
       </body>
     </html>
