@@ -533,7 +533,7 @@ export default function OERPreview({
             </div>
 
             {/* Summary section */}
-            <div className="mt-4 border-t border-green-50 pt-4">
+            <div className="mt-4 border-t border-card pt-4">
               <Button
                 onClick={() => handleSummarizeCategory(category, categoryBullets)}
                 disabled={!isWeightValidForSummarize || isLoadingSummary || categoryBullets.length === 0}
@@ -550,7 +550,7 @@ export default function OERPreview({
               </Button>
 
               {summary && (
-                <div className="mt-3 p-3 border border-border rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 relative shadow-inner">
+                <div className="mt-3 p-3 border border-card rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 relative shadow-inner">
                   <div className="flex justify-between items-center mb-2">
                     <p className="font-medium text-blue-700 dark:text-blue-300">AI Summary:</p>
                     <Button
