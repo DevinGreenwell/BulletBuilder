@@ -132,7 +132,7 @@ export default function SplashScreen({ children }: Props) {
 
               {/* Small note */}
               <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                This popup appears once per session
+                email feedback to <a href='mailto: devin.c.greenwell@gmail.com' className="text-blue-500 hover:underline">devin.c.greenwell@gmail.com</a>
               </p>
             </div>
           </div>
