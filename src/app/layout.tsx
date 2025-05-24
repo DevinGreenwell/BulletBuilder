@@ -1,4 +1,20 @@
 // src/app/layout.tsx
+if (process.env.NODE_ENV === 'production') {
+  const Only = require('react').Children.only;
+  // eslint-disable-next-line no-undef
+  require('react').Children.only = (child: any) => {
+    if (Array.isArray(child)) {
+      // This prints the actual offending elements in the browser console
+      // @ts-ignore
+      console.error('❌ Children.only received ARRAY:', child);
+    } else if (child === undefined || child === null) {
+      console.error('❌ Children.only received', child);
+    }
+    return Only(child);
+  };
+}
+
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 

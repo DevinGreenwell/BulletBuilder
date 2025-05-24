@@ -9,6 +9,7 @@ const nextConfig = {
     // Only use this if TypeScript errors are also blocking builds
     // ignoreBuildErrors: true,
   },
-}
+    productionBrowserSourceMaps: true,
+};
 
 module.exports = nextConfig
