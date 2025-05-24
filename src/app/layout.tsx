@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-
 import AuthProvider from '@/components/auth/AuthProvider';
 import Header from '@/components/auth/Header';
 import MobileOptimization from '@/components/mobile/MobileOptimization';
@@ -43,14 +42,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={poppins.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {/* SplashScreen now WRAPS the rest of the app */}
-          <SplashScreen>
+        <SplashScreen>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
             <AuthProvider>
               <MobileOptimization>
                 <div className="app-layout">
@@ -62,8 +60,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </MobileOptimization>
             </AuthProvider>
-          </SplashScreen>
-        </ThemeProvider>
+          </ThemeProvider>
+        </SplashScreen>
       </body>
     </html>
   );
