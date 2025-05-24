@@ -1,3 +1,4 @@
+// src/components/SplashScreen.tsx - FIXED VERSION
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -13,7 +14,7 @@ type Props = { children: React.ReactNode };
 export default function SplashScreen({ children }: Props) {
   const [isReady, setIsReady] = useState(false);
 
-  // Fake “initialising” delay so the spinner is visible
+  // Fake "initialising" delay so the spinner is visible
   useEffect(() => {
     const id = setTimeout(() => setIsReady(true), 600);
     return () => clearTimeout(id);
@@ -27,7 +28,8 @@ export default function SplashScreen({ children }: Props) {
     );
   }
 
-  return <>{children}</>;
+  // FIXED: Always wrap children in a div to ensure single element
+  return <div className="splash-ready">{children}</div>;
 }
 
 /* -----------------------  Extra widget  ------------------------ */
