@@ -44,8 +44,6 @@ export const metadata: Metadata = {
   },
 };
 
-
-
 export const viewport: Viewport = { /* ... */ };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -62,11 +60,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <AuthProvider>
             <MobileOptimization>
-              <Header /> {/* Theme Toggle will be added inside Header */}
-              <main className="min-h-screen bg-card text-foreground pt-4 transition-colors duration-200"> {/* Added transition */}
-                {children}
-              </main>
-              <Toaster /> {/* Place Toaster inside ThemeProvider if used */}
+              {/* FIXED: Wrap all content in a single div */}
+              <div className="app-layout">
+                <Header /> {/* Theme Toggle will be added inside Header */}
+                <main className="min-h-screen bg-card text-foreground pt-4 transition-colors duration-200"> {/* Added transition */}
+                  {children}
+                </main>
+                <Toaster /> {/* Place Toaster inside ThemeProvider if used */}
+              </div>
             </MobileOptimization>
           </AuthProvider>
         </ThemeProvider>
