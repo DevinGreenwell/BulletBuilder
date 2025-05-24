@@ -533,7 +533,7 @@ export default function OERPreview({
             </div>
 
             {/* Summary section */}
-            <div className="mt-4 border-t border-card pt-4">
+            <div className="mt-4 border-t border-ring pt-4">
               <Button
                 onClick={() => handleSummarizeCategory(category, categoryBullets)}
                 disabled={!isWeightValidForSummarize || isLoadingSummary || categoryBullets.length === 0}
