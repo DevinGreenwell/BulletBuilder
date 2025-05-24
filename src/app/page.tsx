@@ -195,10 +195,15 @@ const renderActiveTabContent = () => {
       );
     case 'bullets':
       return (
-        <div className="p-8">
-          <h2>🔍 BulletEditor Still Disabled</h2>
-          <p>Testing other components first. Click other tabs to test them.</p>
-        </div>
+        <BulletEditor
+          initialBullets={bullets.map(bullet => ({
+            ...bullet,
+            isApplied: Boolean(bullet.isApplied)
+          }))}
+          onBulletsChanged={handleBulletsChanged}
+          rankCategory={rankCategory}
+          rank={rank}
+        />
       );
     case 'oer':
       return (
