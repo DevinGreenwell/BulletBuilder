@@ -184,19 +184,36 @@ export default function Home() {
 
   // Function to render the content for the active tab
 const renderActiveTabContent = () => {
-  return (
-    <div className="p-8">
-      <h2 className="text-xl font-bold mb-4">Safe Mode - Tab: {activeTab}</h2>
-      <div className="space-y-4">
-        <p>🛡️ All components are disabled to prevent errors</p>
-        <p>✅ This should work without any React.Children.only errors</p>
-        <div className="p-4 bg-green-100 border border-green-200 rounded">
-          <p><strong>Active Tab:</strong> {activeTab}</p>
-          <p><strong>Status:</strong> Safe mode - no component errors</p>
+  switch (activeTab) {
+    case 'chat':
+      return (
+        <ChatInterface
+          onBulletGenerated={handleBulletGenerated}
+          rankCategory={rankCategory}
+          rank={rank}
+        />
+      );
+    case 'bullets':
+      return (
+        <div className="p-8">
+          <h2>🔍 BulletEditor Still Disabled</h2>
+          <p>Testing other components first. Click other tabs to test them.</p>
         </div>
-      </div>
-    </div>
-  );
+      );
+    case 'oer':
+      return (
+        <OERPreview
+          bullets={bullets.map(bullet => ({
+            ...bullet,
+            isApplied: Boolean(bullet.isApplied)
+          }))}
+          rankCategory={rankCategory}
+          rank={rank}
+        />
+      );
+    default:
+      return <div>Content not found</div>;
+  }
 };
 
   // Show loading state while data is being loaded
