@@ -187,16 +187,31 @@ const renderActiveTabContent = () => {
   switch (activeTab) {
     case 'chat':
       return (
-        <ChatInterface
-          onBulletGenerated={handleBulletGenerated}
+        <div className="p-8">
+          <h2>🔍 Testing: ChatInterface (Placeholder)</h2>
+          <p>✅ Click "Manage Bullets" tab to test BulletEditor</p>
+        </div>
+      );
+    case 'bullets':
+      // ONLY BulletEditor is real, others are placeholders
+      return (
+        <BulletEditor
+          initialBullets={bullets.map(bullet => ({
+            ...bullet,
+            isApplied: Boolean(bullet.isApplied)
+          }))}
+          onBulletsChanged={handleBulletsChanged}
           rankCategory={rankCategory}
           rank={rank}
         />
       );
-    case 'bullets':
-      return <div className="p-8"><h2>BulletEditor (Placeholder)</h2></div>;
     case 'oer':
-      return <div className="p-8"><h2>OERPreview (Placeholder)</h2></div>;
+      return (
+        <div className="p-8">
+          <h2>🔍 Testing: OERPreview (Placeholder)</h2>
+          <p>✅ Click "Manage Bullets" tab to test BulletEditor</p>
+        </div>
+      );
     default:
       return <div>Content not found</div>;
   }
