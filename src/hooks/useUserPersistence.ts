@@ -1,4 +1,4 @@
-// src/hooks/useUserPersistence.ts
+// src/hooks/useUserPersistence.ts (Updated with better error handling)
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import type { Bullet } from '@/types/bullets';
@@ -70,6 +70,8 @@ export function useUserPersistence() {
   // Use refs to prevent infinite re-renders
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isSavingRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   // Load user data when session is available
   const loadUserData = useCallback(async () => {
@@ -90,7 +92,19 @@ export function useUserPersistence() {
           setIsLoading(false);
           return;
         }
-        throw new Error(`Failed to load user data: ${response.status}`);
+        
+        // Try to get error details
+        let errorMessage = `Failed to load user data: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const data: unknown = await response.json();
@@ -127,8 +141,8 @@ export function useUserPersistence() {
     }
   }, [session, status]);
 
-  // Save user data with debouncing
-  const saveUserData = useCallback(async (data: Partial<UserData>) => {
+  // Save user data with better error handling and retries
+  const saveUserData = useCallback(async (data: Partial<UserData>, retryCount = 0) => {
     if (status !== 'authenticated' || !session?.user?.id || isSavingRef.current) {
       return;
     }
@@ -155,7 +169,17 @@ export function useUserPersistence() {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to save user data: ${response.status}`);
+        let errorMessage = `Failed to save user data: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const responseData: { id?: string } = await response.json();
@@ -164,11 +188,29 @@ export function useUserPersistence() {
       }
 
       setSaveStatus('saved');
+      retryCountRef.current = 0; // Reset retry count on success
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) {
       console.error('Error saving user data:', err);
+      
+      // Retry logic for certain errors
+      if (retryCount < maxRetries && err instanceof Error) {
+        const shouldRetry = err.message.includes('Foreign key constraint') || 
+                           err.message.includes('Network') ||
+                           err.message.includes('500');
+        
+        if (shouldRetry) {
+          console.log(`Retrying save (attempt ${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => {
+            saveUserData(data, retryCount + 1);
+          }, 1000 * (retryCount + 1)); // Exponential backoff
+          return;
+        }
+      }
+      
       setError(err instanceof Error ? err.message : 'Failed to save user data');
       setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 5000);
     } finally {
       isSavingRef.current = false;
     }
@@ -184,15 +226,17 @@ export function useUserPersistence() {
     // Set new timeout
     saveTimeoutRef.current = setTimeout(() => {
       saveUserData(changes);
-    }, 1000); // 1 second debounce
+    }, 1500); // Increased debounce to 1.5 seconds
   }, [saveUserData]);
 
   // Specific helper functions
   const updateBullets = useCallback((bullets: Bullet[]) => {
     const changes = { bullets };
     setUserData(prev => ({ ...prev, ...changes }));
-    debouncedSave(changes);
-  }, [debouncedSave]);
+    if (status === 'authenticated') {
+      debouncedSave(changes);
+    }
+  }, [debouncedSave, status]);
 
   const updatePreferences = useCallback((preferences: Partial<UserPreferences>) => {
     const changes = { 
@@ -202,8 +246,10 @@ export function useUserPersistence() {
       } 
     };
     setUserData(prev => ({ ...prev, ...changes }));
-    debouncedSave(changes);
-  }, [debouncedSave, userData.preferences]);
+    if (status === 'authenticated') {
+      debouncedSave(changes);
+    }
+  }, [debouncedSave, userData.preferences, status]);
 
   const updateEvaluationData = useCallback((evaluationData: Partial<UserData['evaluationData']>) => {
     const changes = { 
@@ -213,20 +259,26 @@ export function useUserPersistence() {
       } 
     };
     setUserData(prev => ({ ...prev, ...changes }));
-    debouncedSave(changes);
-  }, [debouncedSave, userData.evaluationData]);
+    if (status === 'authenticated') {
+      debouncedSave(changes);
+    }
+  }, [debouncedSave, userData.evaluationData, status]);
 
   const updateBulletWeights = useCallback((bulletWeights: { [bulletId: string]: string }) => {
     const changes = { bulletWeights };
     setUserData(prev => ({ ...prev, ...changes }));
-    debouncedSave(changes);
-  }, [debouncedSave]);
+    if (status === 'authenticated') {
+      debouncedSave(changes);
+    }
+  }, [debouncedSave, status]);
 
   const updateSummaries = useCallback((summaries: { [category: string]: string }) => {
     const changes = { summaries };
     setUserData(prev => ({ ...prev, ...changes }));
-    debouncedSave(changes);
-  }, [debouncedSave]);
+    if (status === 'authenticated') {
+      debouncedSave(changes);
+    }
+  }, [debouncedSave, status]);
 
   const saveChatSession = useCallback((sessionId: string, chatSession: ChatSession) => {
     const changes = { 
@@ -236,8 +288,10 @@ export function useUserPersistence() {
       } 
     };
     setUserData(prev => ({ ...prev, ...changes }));
-    debouncedSave(changes);
-  }, [debouncedSave, userData.chatSessions]);
+    if (status === 'authenticated') {
+      debouncedSave(changes);
+    }
+  }, [debouncedSave, userData.chatSessions, status]);
 
   // Load data on session change
   useEffect(() => {

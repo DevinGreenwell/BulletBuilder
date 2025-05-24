@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Ensure user exists in database
+    await ensureUserExists(session.user.id, session.user.email);
+
     const userData = await prisma.work.findMany({
       where: {
         userId: session.user.id
@@ -48,6 +51,9 @@ export async function POST(request: NextRequest) {
     if (!content) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
     }
+
+    // Ensure user exists in database before creating work
+    await ensureUserExists(session.user.id, session.user.email);
 
     const userData = await prisma.work.create({
       data: {
@@ -87,6 +93,9 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Ensure user exists in database
+    await ensureUserExists(session.user.id, session.user.email);
 
     // Verify ownership
     const existingWork = await prisma.work.findFirst({
@@ -168,5 +177,37 @@ export async function DELETE(request: NextRequest) {
       { error: 'Failed to delete user data' }, 
       { status: 500 }
     );
+  }
+}
+
+// Helper function to ensure user exists in database
+async function ensureUserExists(userId: string, userEmail?: string | null) {
+  try {
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!existingUser) {
+      // Create user if they don't exist
+      await prisma.user.create({
+        data: {
+          id: userId,
+          email: userEmail || '',
+          name: null,
+          image: null,
+          emailVerified: null
+        }
+      });
+      console.log('Created missing user:', userId);
+    }
+  } catch (error) {
+    // If user creation fails due to unique constraint, that's okay - user might have been created by another request
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      console.log('User already exists (created by another request)');
+    } else {
+      console.error('Error ensuring user exists:', error);
+      throw error;
+    }
   }
 }
