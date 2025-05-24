@@ -1,4 +1,4 @@
-// src/components/bullets/BulletEditor.tsx - FIXED VERSION
+// src/components/bullets/BulletEditor.tsx
 
 'use client';
 
@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// REMOVED: import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import React from 'react';
 
 export interface Bullet {
@@ -487,12 +487,11 @@ export default function BulletEditor({
         </div>
       </div>
 
-      {/* FIXED: Replaced Alert with simple div */}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md" role="alert">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
+{error && (
+  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+    <p className="text-sm text-red-700">{error}</p>
+  </div>
+)}
 
       {/* Add new bullet form */}
       {showAddForm && (
