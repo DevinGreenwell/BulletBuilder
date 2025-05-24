@@ -1,4 +1,4 @@
-// src/hooks/useUserPersistence.ts (Updated with better error handling)
+// src/hooks/useUserPersistence.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import type { Bullet } from '@/types/bullets';
@@ -10,24 +10,9 @@ interface UserPreferences {
   competencyPreferences: string[];
 }
 
-interface DisplayMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  competency?: string;
-  timestamp: number;
-  type?: 'bullet' | 'question' | 'error';
-}
-
-interface ChatSession {
-  messages: DisplayMessage[];
-  lastCompetency: string;
-}
-
 interface UserData {
   bullets: Bullet[];
   preferences: UserPreferences;
-  chatSessions: { [sessionId: string]: ChatSession };
   evaluationData: {
     startDate: string;
     endDate: string;
@@ -47,7 +32,6 @@ const defaultUserData: UserData = {
     lastActiveTab: 'chat',
     competencyPreferences: []
   },
-  chatSessions: {},
   evaluationData: {
     startDate: '',
     endDate: '',
@@ -67,11 +51,11 @@ export function useUserPersistence() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [workId, setWorkId] = useState<string | null>(null);
   
-  // Use refs to prevent infinite re-renders
+  // Use refs to prevent infinite re-renders and reduce save frequency
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isSavingRef = useRef(false);
-  const retryCountRef = useRef(0);
-  const maxRetries = 3;
+  const lastSaveRef = useRef<number>(0);
+  const minSaveInterval = 5000; // Minimum 5 seconds between saves
 
   // Load user data when session is available
   const loadUserData = useCallback(async () => {
@@ -84,27 +68,22 @@ export function useUserPersistence() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch('/api/user-data');
+      const response = await fetch('/api/user-data', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
       if (!response.ok) {
-        if (response.status === 404) {
-          // No saved data yet, use defaults
+        if (response.status === 404 || response.status === 401) {
+          // No saved data yet or not authenticated, use defaults
           setUserData(defaultUserData);
           setIsLoading(false);
           return;
         }
         
-        // Try to get error details
-        let errorMessage = `Failed to load user data: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } catch {
-          // Ignore JSON parse errors
-        }
-        
-        throw new Error(errorMessage);
+        throw new Error(`Failed to load user data: ${response.status}`);
       }
 
       const data: unknown = await response.json();
@@ -112,14 +91,13 @@ export function useUserPersistence() {
         const latestWork = data[0] as { id: string; content: UserData };
         setWorkId(latestWork.id);
         
-        // Merge saved data with defaults to ensure all fields exist
+        // Merge saved data with defaults
         const parsedData: UserData = {
-          bullets: latestWork.content.bullets || defaultUserData.bullets,
+          bullets: Array.isArray(latestWork.content.bullets) ? latestWork.content.bullets : defaultUserData.bullets,
           preferences: {
             ...defaultUserData.preferences,
             ...latestWork.content.preferences
           },
-          chatSessions: latestWork.content.chatSessions || defaultUserData.chatSessions,
           evaluationData: {
             ...defaultUserData.evaluationData,
             ...latestWork.content.evaluationData
@@ -141,18 +119,28 @@ export function useUserPersistence() {
     }
   }, [session, status]);
 
-  // Save user data with better error handling and retries
-  const saveUserData = useCallback(async (data: Partial<UserData>, retryCount = 0) => {
+  // Save user data with much less frequency
+  const saveUserData = useCallback(async (data: Partial<UserData>) => {
     if (status !== 'authenticated' || !session?.user?.id || isSavingRef.current) {
+      return;
+    }
+
+    // Check if enough time has passed since last save
+    const now = Date.now();
+    if (now - lastSaveRef.current < minSaveInterval) {
+      console.log('Skipping save - too frequent');
       return;
     }
 
     try {
       isSavingRef.current = true;
+      lastSaveRef.current = now;
       setSaveStatus('saving');
       setError(null);
 
       const updatedData = { ...userData, ...data };
+      
+      // Update local state immediately for responsiveness
       setUserData(updatedData);
 
       const payload = {
@@ -162,52 +150,36 @@ export function useUserPersistence() {
         ...(workId ? { id: workId } : {})
       };
 
+      console.log('Saving to /api/user-data with payload:', { 
+        userId: payload.userId, 
+        hasContent: !!payload.content,
+        method: workId ? 'PUT' : 'POST'
+      });
+
       const response = await fetch('/api/user-data', {
         method: workId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        let errorMessage = `Failed to save user data: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } catch {
-          // Ignore JSON parse errors
-        }
-        
-        throw new Error(errorMessage);
+        const errorText = await response.text();
+        console.error('Save failed with response:', errorText);
+        throw new Error(`Failed to save: ${response.status} - ${errorText}`);
       }
 
       const responseData: { id?: string } = await response.json();
       if (!workId && responseData.id) {
         setWorkId(responseData.id);
+        console.log('Set workId to:', responseData.id);
       }
 
       setSaveStatus('saved');
-      retryCountRef.current = 0; // Reset retry count on success
-      setTimeout(() => setSaveStatus('idle'), 2000);
+      setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
       console.error('Error saving user data:', err);
-      
-      // Retry logic for certain errors
-      if (retryCount < maxRetries && err instanceof Error) {
-        const shouldRetry = err.message.includes('Foreign key constraint') || 
-                           err.message.includes('Network') ||
-                           err.message.includes('500');
-        
-        if (shouldRetry) {
-          console.log(`Retrying save (attempt ${retryCount + 1}/${maxRetries})`);
-          setTimeout(() => {
-            saveUserData(data, retryCount + 1);
-          }, 1000 * (retryCount + 1)); // Exponential backoff
-          return;
-        }
-      }
-      
       setError(err instanceof Error ? err.message : 'Failed to save user data');
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 5000);
@@ -216,27 +188,42 @@ export function useUserPersistence() {
     }
   }, [session, status, userData, workId]);
 
-  // Debounced save function
+  // Very infrequent debounced save function
   const debouncedSave = useCallback((changes: Partial<UserData>) => {
     // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // Set new timeout
+    // Set new timeout - much longer delay
     saveTimeoutRef.current = setTimeout(() => {
       saveUserData(changes);
-    }, 1500); // Increased debounce to 1.5 seconds
+    }, 10000); // 10 second delay
   }, [saveUserData]);
 
-  // Specific helper functions
+  // Manual save function for important changes
+  const manualSave = useCallback((changes: Partial<UserData>) => {
+    // Clear any pending debounced save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Save immediately
+    const updatedData = { ...userData, ...changes };
+    setUserData(updatedData);
+    saveUserData(changes);
+  }, [saveUserData, userData]);
+
+  // Helper functions that update local state immediately
   const updateBullets = useCallback((bullets: Bullet[]) => {
     const changes = { bullets };
     setUserData(prev => ({ ...prev, ...changes }));
+    
+    // Only save if authenticated, and use manual save for important data like bullets
     if (status === 'authenticated') {
-      debouncedSave(changes);
+      manualSave(changes);
     }
-  }, [debouncedSave, status]);
+  }, [manualSave, status]);
 
   const updatePreferences = useCallback((preferences: Partial<UserPreferences>) => {
     const changes = { 
@@ -246,6 +233,8 @@ export function useUserPersistence() {
       } 
     };
     setUserData(prev => ({ ...prev, ...changes }));
+    
+    // Use debounced save for preferences (less critical)
     if (status === 'authenticated') {
       debouncedSave(changes);
     }
@@ -259,6 +248,7 @@ export function useUserPersistence() {
       } 
     };
     setUserData(prev => ({ ...prev, ...changes }));
+    
     if (status === 'authenticated') {
       debouncedSave(changes);
     }
@@ -267,6 +257,7 @@ export function useUserPersistence() {
   const updateBulletWeights = useCallback((bulletWeights: { [bulletId: string]: string }) => {
     const changes = { bulletWeights };
     setUserData(prev => ({ ...prev, ...changes }));
+    
     if (status === 'authenticated') {
       debouncedSave(changes);
     }
@@ -275,23 +266,11 @@ export function useUserPersistence() {
   const updateSummaries = useCallback((summaries: { [category: string]: string }) => {
     const changes = { summaries };
     setUserData(prev => ({ ...prev, ...changes }));
+    
     if (status === 'authenticated') {
       debouncedSave(changes);
     }
   }, [debouncedSave, status]);
-
-  const saveChatSession = useCallback((sessionId: string, chatSession: ChatSession) => {
-    const changes = { 
-      chatSessions: { 
-        ...userData.chatSessions, 
-        [sessionId]: chatSession 
-      } 
-    };
-    setUserData(prev => ({ ...prev, ...changes }));
-    if (status === 'authenticated') {
-      debouncedSave(changes);
-    }
-  }, [debouncedSave, userData.chatSessions, status]);
 
   // Load data on session change
   useEffect(() => {
@@ -320,11 +299,11 @@ export function useUserPersistence() {
     updateEvaluationData,
     updateBulletWeights,
     updateSummaries,
-    saveChatSession,
     
     // Manual save/load
     saveUserData,
     loadUserData,
+    manualSave,
     
     // Status
     isAuthenticated: status === 'authenticated'

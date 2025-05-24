@@ -74,7 +74,7 @@ useEffect(() => {
   if (status === 'authenticated' && (session?.user as { id: string }).id) {
     setIsLoading(true);
     
-    fetch('/api/work')
+    fetch('/api/user-data')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch user data');
         return res.json();
@@ -158,7 +158,7 @@ useEffect(() => {
         workData.id = workId;
       }
       
-      const response = await fetch('/api/work', {
+      const response = await fetch('/api/user-data', {
         method,
         headers: {
           'Content-Type': 'application/json',

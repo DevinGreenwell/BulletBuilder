@@ -10,7 +10,7 @@ export async function saveWork(data: any) {
     throw new Error('Invalid work data: must be a non-null object');
   }
 
-  const res = await fetch('/api/work', {
+  const res = await fetch('/api/user-data', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -28,7 +28,7 @@ export async function saveWork(data: any) {
 }
 
 export async function deleteWork(id: string) {
-  const res = await fetch(`/api/work?id=${id}`, {
+  const res = await fetch(`/api/user-data?id=${id}`, {
     method: 'DELETE',
   });
 
@@ -42,7 +42,7 @@ export async function deleteWork(id: string) {
 }
 
 export async function getWork(): Promise<WorkRecord[]> {
-  const res = await fetch('/api/work', {
+  const res = await fetch('/api/user-data', {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
