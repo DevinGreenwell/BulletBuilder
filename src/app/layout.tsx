@@ -1,15 +1,14 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import AuthProvider from "@/components/auth/AuthProvider";
-import Header from "@/components/auth/Header";
-import MobileOptimization from "@/components/mobile/MobileOptimization";
-import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/components/ui/sonner";
-import { Poppins } from 'next/font/google';
-import './globals.css';
 
+import AuthProvider from '@/components/auth/AuthProvider';
+import Header from '@/components/auth/Header';
+import MobileOptimization from '@/components/mobile/MobileOptimization';
 import SplashScreen from '@/components/SplashScreen';
+import { ThemeProvider } from 'next-themes';
+import { Toaster } from '@/components/ui/sonner';
+import { Poppins } from 'next/font/google';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -17,6 +16,7 @@ const poppins = Poppins({
   variable: '--font-poppins',
 });
 
+/* ----------  Metadata & viewport (unchanged) ---------- */
 export const metadata: Metadata = {
   title: 'Bullet Builder 2.0',
   description: 'AI-Powered Evaluation Tool for USCG',
@@ -26,14 +26,7 @@ export const metadata: Metadata = {
     description: 'AI-Powered Evaluation Tool for USCG',
     url: 'https://www.BulletBuilder.net',
     siteName: 'Bullet Builder 2.0',
-    images: [
-      {
-        url: '/logo.png',
-        width: 267,
-        height: 240,
-        alt: 'Bullet Builder 2.0',
-      },
-    ],
+    images: [{ url: '/logo.png', width: 267, height: 240, alt: 'Bullet Builder 2.0' }],
     type: 'website',
   },
   twitter: {
@@ -44,34 +37,33 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { /* ... */ };
+export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 
+/* ---------------------------  Layout  --------------------------- */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={poppins.className}>
-        {/* Wrap everything inside ThemeProvider with a single element */}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          {/* Use a div or React Fragment as the single child */}
-          <div>
-            <SplashScreen />
+          {/* SplashScreen now WRAPS the rest of the app */}
+          <SplashScreen>
             <AuthProvider>
               <MobileOptimization>
                 <div className="app-layout">
                   <Header />
-                  <main className="min-h-screen bg-card text-foreground pt-4 transition-colors duration-200">
+                  <main className="min-h-screen bg-card pt-4 text-foreground transition-colors duration-200">
                     {children}
                   </main>
                   <Toaster />
                 </div>
               </MobileOptimization>
             </AuthProvider>
-          </div>
+          </SplashScreen>
         </ThemeProvider>
       </body>
     </html>

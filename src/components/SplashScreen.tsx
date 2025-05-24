@@ -1,45 +1,43 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
-export default function SplashScreen() {
-  const [show, setShow] = useState(false);
+/** ----------------------------------------------------------------
+ *  A simple wrapper-style splash screen.
+ *  – Shows a spinner for a moment, then renders its children.
+ *  – ALSO exports <BuyMeCoffeeButton/> as a stand-alone widget.
+ *  ---------------------------------------------------------------- */
+type Props = { children: React.ReactNode };
 
-  // 👉 show every browser session (localStorage flag)
+export default function SplashScreen({ children }: Props) {
+  const [isReady, setIsReady] = useState(false);
+
+  // Fake “initialising” delay so the spinner is visible
   useEffect(() => {
-    const flag = window.sessionStorage.getItem('sawSplash');
-    if (!flag) setShow(true);
+    const id = setTimeout(() => setIsReady(true), 600);
+    return () => clearTimeout(id);
   }, []);
 
-  if (!show) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-80 rounded-2xl bg-white p-6 text-center shadow-xl">
-        <h1 className="mb-3 text-xl text-gray-800 font-semibold">Enjoying Bullet Builder 2.0?</h1>
-        <p className="mb-6 text-sm text-gray-600">
-          Help keep this tool alive with a modest donation!
-        </p>
-
-        <Link
-          href="https://account.venmo.com/u/Devin-Greenwell-1"
-          target="_blank"
-          className="inline-block rounded-full bg-blue-500 px-5 py-2 font-medium text-white hover:bg-blue-600"
-        >
-          ☕ Buy Me a Coffee
-        </Link>
-
-        <button
-          onClick={() => {
-            window.sessionStorage.setItem('sawSplash', '1');
-            setShow(false);
-          }}
-          className="mt-4 block w-full text-xs text-gray-500 hover:underline"
-        >
-          Next time
-        </button>
+  if (!isReady) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin" aria-label="Loading" />
       </div>
-    </div>
-  );
+    );
+  }
+
+  return <>{children}</>;
 }
+
+/* -----------------------  Extra widget  ------------------------ */
+export const BuyMeCoffeeButton: React.FC = () => (
+  <a
+    href="https://www.buymeacoffee.com/bulletbuilder"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="fixed bottom-4 right-4 z-50 rounded-xl bg-yellow-400 px-4 py-2 font-semibold text-background shadow-lg transition-colors hover:bg-yellow-300"
+  >
+    Buy me a coffee
+  </a>
+);

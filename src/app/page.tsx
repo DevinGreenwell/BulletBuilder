@@ -1,5 +1,3 @@
-// src/app/page.tsx
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -9,7 +7,7 @@ import BulletEditor from '@/components/bullets/BulletEditor';
 import OERPreview from '@/components/oer/OERPreview';
 import RankSelector from '@/components/ui/RankSelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import BuyMeCoffeeButton from '@/components/SplashScreen';
+import { BuyMeCoffeeButton } from '@/components/SplashScreen';   // ← changed
 import { useUserPersistence } from '@/hooks/useUserPersistence';
 import { cn } from '@/lib/utils';
 import type { Bullet } from '@/types/bullets';
