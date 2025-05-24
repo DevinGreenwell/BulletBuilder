@@ -1,4 +1,4 @@
-// src/app/page.tsx - FIXED VERSION
+// src/app/page.tsx - COMPRESSED VERSION FOR ABOVE-THE-FOLD FIT
 
 'use client';
 
@@ -29,7 +29,7 @@ const Tab: React.FC<TabProps> = ({ id, isActive, onClick, label }) => (
   <button
     onClick={onClick}
     className={cn(
-      'px-4 py-2 font-medium transition-colors',
+      'px-3 py-1.5 text-sm font-medium transition-colors', // COMPRESSED: Smaller padding and text
       isActive 
         ? 'border-b-2 border-ring text-ring' 
         : 'text-muted-foreground hover:text-foreground'
@@ -45,21 +45,21 @@ const Tab: React.FC<TabProps> = ({ id, isActive, onClick, label }) => (
 
 // Error fallback component (not currently used)
 const ErrorFallback = ({ error }: { error: Error }) => (
-  <div className="p-4 border border-red-200 rounded-md bg-red-50 text-red-900">
-    <h3 className="text-lg font-semibold mb-2">Component Error</h3>
+  <div className="p-3 border border-red-200 rounded-md bg-red-50 text-red-900"> {/* COMPRESSED: Less padding */}
+    <h3 className="text-base font-semibold mb-1">Component Error</h3> {/* COMPRESSED: Smaller text and margin */}
     <p className="text-sm">{error.message || 'An unknown error occurred'}</p>
   </div>
 );
 
 // Loading component
 const LoadingState = () => (
-  <div className="min-h-screen p-4 md:p-8 bg-background text-foreground">
+  <div className="min-h-screen p-2 md:p-4 bg-background text-foreground"> {/* COMPRESSED: Less padding */}
     <div className="mx-auto max-w-6xl">
       <div className="animate-pulse">
-        <div className="h-8 bg-gray-200 rounded-md w-1/2 mx-auto mb-6"></div>
-        <div className="h-32 bg-gray-200 rounded-md mb-6"></div>
-        <div className="h-12 bg-gray-200 rounded-md mb-6"></div>
-        <div className="h-96 bg-gray-200 rounded-md"></div>
+        <div className="h-6 bg-gray-200 rounded-md w-1/2 mx-auto mb-3"></div> {/* COMPRESSED: Smaller height and margin */}
+        <div className="h-20 bg-gray-200 rounded-md mb-3"></div> {/* COMPRESSED: Smaller height and margin */}
+        <div className="h-8 bg-gray-200 rounded-md mb-3"></div> {/* COMPRESSED: Smaller height and margin */}
+        <div className="h-64 bg-gray-200 rounded-md"></div> {/* COMPRESSED: Much smaller height */}
       </div>
     </div>
   </div>
@@ -227,16 +227,17 @@ const renderActiveTabContent = () => {
   }
 
   return (
-    <main className="min-h-screen p-4 md:p-8 bg-background text-foreground">
+    <main className="min-h-screen p-2 md:p-4 bg-background text-foreground"> {/* COMPRESSED: Much less padding */}
       <div className="mx-auto max-w-6xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-center text-2xl font-bold md:text-3xl text-foreground flex-1">
+        {/* COMPRESSED: Header section with tighter spacing */}
+        <div className="flex justify-between items-center mb-3"> {/* COMPRESSED: Less margin */}
+          <h1 className="text-center text-xl font-bold md:text-2xl text-foreground flex-1"> {/* COMPRESSED: Smaller text */}
             USCG {getEvaluationTitle()} Generator
           </h1>
           
           {/* Save status indicator */}
           {isAuthenticated && (
-            <div className="text-sm">
+            <div className="text-xs"> {/* COMPRESSED: Smaller text */}
               {saveStatus === 'saving' && (
                 <span className="text-blue-600">Saving...</span>
               )}
@@ -250,26 +251,26 @@ const renderActiveTabContent = () => {
           )}
         </div>
 
-        {/* FIXED: Authentication notice - replaced Alert with simple div */}
+        {/* COMPRESSED: Authentication notice */}
         {!isAuthenticated && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-sm text-blue-700">
+          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md"> {/* COMPRESSED: Less margin and padding */}
+            <p className="text-xs text-blue-700"> {/* COMPRESSED: Smaller text */}
               Sign in to save your work and access it across sessions.
             </p>
           </div>
         )}
 
-        {/* FIXED: Persistence error - replaced Alert variant="destructive" with simple div */}
+        {/* COMPRESSED: Persistence error */}
         {persistenceError && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-700">
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md"> {/* COMPRESSED: Less margin and padding */}
+            <p className="text-xs text-red-700"> {/* COMPRESSED: Smaller text */}
               Data persistence error: {persistenceError}
             </p>
           </div>
         )}
 
-        {/* Rank Selector */}
-        <div className="mb-6 p-4 md:p-6 bg-card text-card-foreground border border-ring rounded-md shadow-sm">
+        {/* COMPRESSED: Rank Selector */}
+        <div className="mb-3 p-3 md:p-4 bg-card text-card-foreground border border-ring rounded-md shadow-sm"> {/* COMPRESSED: Less margin and padding */}
           <RankSelector
             selectedRankCategory={rankCategory}
             selectedRank={rank}
@@ -278,8 +279,8 @@ const renderActiveTabContent = () => {
           />
         </div>
 
-        {/* Tabs Navigation */}
-        <nav className="mb-6">
+        {/* COMPRESSED: Tabs Navigation */}
+        <nav className="mb-3"> {/* COMPRESSED: Less margin */}
           <div className="flex border-b border-ring" role="tablist">
             {tabs.map(tab => (
               <Tab
@@ -293,12 +294,12 @@ const renderActiveTabContent = () => {
           </div>
         </nav>
 
-        {/* Main Content Area */}
-        <div className="p-4 md:p-6 bg-card text-card-foreground border border-ring rounded-md shadow-sm">
-          {/* FIXED: Error in main content - replaced Alert variant="destructive" with simple div */}
+        {/* COMPRESSED: Main Content Area */}
+        <div className="p-3 md:p-4 bg-card text-card-foreground border border-ring rounded-md shadow-sm"> {/* COMPRESSED: Less padding */}
+          {/* COMPRESSED: Error in main content */}
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-md"> {/* COMPRESSED: Less margin and padding */}
+              <p className="text-xs text-red-700">{error}</p> {/* COMPRESSED: Smaller text */}
             </div>
           )}
           
@@ -312,19 +313,17 @@ const renderActiveTabContent = () => {
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="mt-8 flex flex-col items-center gap-2">
-          <p className="text-center text-sm text-muted-foreground">
+        {/* COMPRESSED: Footer - Much more compact */}
+        <footer className="mt-4 flex flex-col items-center gap-1"> {/* COMPRESSED: Less margin and gap */}
+          <p className="text-center text-xs text-muted-foreground"> {/* COMPRESSED: Smaller text */}
             This application helps generate performance bullets and create {getEvaluationTitle()}s.
             {isAuthenticated && (
-              <span className="block mt-1">
+              <span className="ml-2"> {/* COMPRESSED: Inline instead of block */}
                 Your work is automatically saved.
               </span>
             )}
           </p>
-          <div className="mt-2">
-            <BuyMeCoffeeButton />
-          </div>
+          {/* COMPRESSED: Removed redundant BuyMeCoffeeButton since it's in SplashScreen */}
         </footer>
       </div>
     </main>
