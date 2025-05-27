@@ -33,6 +33,11 @@ export const metadata: Metadata = {
     description: 'AI-Powered Evaluation Tool for USCG',
     images: ['/logo-512.png'],
   },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/logo-180.png',
+  },
+  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
