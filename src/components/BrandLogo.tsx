@@ -13,7 +13,7 @@ export default function BrandLogo({
   return (
     <Link href="/" className="flex items-center gap-2">
       <Image
-        src="/Logo-512.png"
+        src="/logo-512.png"
         alt="logo"
         width={size}
         height={size}
