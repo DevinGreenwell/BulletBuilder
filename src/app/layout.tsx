@@ -24,14 +24,14 @@ export const metadata: Metadata = {
     description: 'AI-Powered Evaluation Tool for USCG',
     url: 'https://www.BulletBuilder.net',
     siteName: 'Bullet Builder 2.0',
-    images: [{ url: '/logo.png', width: 267, height: 240, alt: 'Bullet Builder 2.0' }],
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Bullet Builder 2.0' }],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Bullet Builder 2.0',
     description: 'AI-Powered Evaluation Tool for USCG',
-    images: ['/logo.png'],
+    images: ['/logo-512.png'],
   },
 };
 
