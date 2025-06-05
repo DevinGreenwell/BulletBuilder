@@ -88,7 +88,7 @@ Competency description: ${competencyDescription}.
     // Call the OpenAI API with sanitized messages cast to the expected type
     const sanitizedMessages = messagesToSend.map(m => m.role === "function" ? { ...m, name: m.name ?? "" } : m) as unknown as Parameters<typeof openai.chat.completions.create>[0]['messages'];
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1-nano-2025-04-14", // Or your preferred model
+      model: "gpt-4.1-mini-2025-04-14", // Or your preferred model
       messages: sanitizedMessages,
       temperature: 0.6,
       max_tokens: 200,
@@ -166,7 +166,7 @@ Generate *only* the summary paragraph as plain text, without any introductory ph
 
         // Call the OpenAI API
         const response = await openai.chat.completions.create({
-            model: "gpt-4.1-nano-2025-04-14", //Or you preferred model
+            model: "gpt-4.1-mini-2025-04-14", //Or you preferred model
             messages: [
                 { role: "system", content: `You are an expert writing assistant specialized in summarizing USCG performance bullets for main evaluation categories according to specified weights for ${rankCategory === 'Officer' ? 'an Officer' : 'Enlisted personnel'}.` },
                 { role: "user", content: systemPrompt } // The user prompt contains the detailed task and data
