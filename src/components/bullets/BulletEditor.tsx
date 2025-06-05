@@ -18,8 +18,6 @@ export interface Bullet {
   content: string;
   isApplied: boolean;
   category: string;
-  createdAt: number;
-  source?: string;
 }
 
 export interface BulletEditorProps {
@@ -357,8 +355,6 @@ export default function BulletEditor({
         content: newBulletForm.content.trim(),
         isApplied: false,
         category: category,
-        createdAt: Date.now(),
-        source: 'manual'
       };
 
       const updatedBullets = [...bullets, newBullet];
