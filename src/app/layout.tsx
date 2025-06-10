@@ -7,6 +7,7 @@ import SplashScreen from '@/components/SplashScreen';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/sonner';
 import { Poppins } from 'next/font/google';
+import { Analytics } from "@vercel/analytics/next"
 
 const poppins = Poppins({
   subsets: ['latin'],
