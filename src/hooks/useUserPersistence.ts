@@ -77,8 +77,12 @@ export function useUserPersistence() {
 
       if (!response.ok) {
         if (response.status === 404 || response.status === 401) {
-          // No saved data yet or not authenticated, use defaults
-          setUserData(defaultUserData);
+          // No saved data yet or not authenticated, use defaults but preserve existing bullets
+          console.log('useUserPersistence: No saved data found, preserving existing bullets');
+          setUserData(prev => ({
+            ...defaultUserData,
+            bullets: prev.bullets.length > 0 ? prev.bullets : defaultUserData.bullets
+          }));
           setIsLoading(false);
           return;
         }
@@ -106,14 +110,23 @@ export function useUserPersistence() {
           summaries: latestWork.content.summaries || defaultUserData.summaries
         };
         
+        console.log('useUserPersistence: Loaded data with', parsedData.bullets.length, 'bullets');
         setUserData(parsedData);
       } else {
-        setUserData(defaultUserData);
+        console.log('useUserPersistence: No data array found, preserving existing bullets');
+        setUserData(prev => ({
+          ...defaultUserData,
+          bullets: prev.bullets.length > 0 ? prev.bullets : defaultUserData.bullets
+        }));
       }
     } catch (err) {
       console.error('Error loading user data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load user data');
-      setUserData(defaultUserData);
+      // Don't reset bullets on error - preserve them
+      setUserData(prev => ({
+        ...defaultUserData,
+        bullets: prev.bullets.length > 0 ? prev.bullets : defaultUserData.bullets
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -216,11 +229,17 @@ export function useUserPersistence() {
 
   // Helper functions that update local state immediately
   const updateBullets = useCallback((bullets: Bullet[]) => {
+    console.log('useUserPersistence: updateBullets called with:', bullets.length, 'bullets');
+    
     const changes = { bullets };
-    setUserData(prev => ({ ...prev, ...changes }));
+    setUserData(prev => {
+      console.log('useUserPersistence: Previous bullets count:', prev.bullets.length, 'New count:', bullets.length);
+      return { ...prev, ...changes };
+    });
     
     // Only save if authenticated, and use manual save for important data like bullets
     if (status === 'authenticated') {
+      console.log('useUserPersistence: Starting manual save for bullets');
       manualSave(changes);
     }
   }, [manualSave, status]);

@@ -55,7 +55,7 @@ const ErrorFallback = ({ error }: { error: Error }) => (
 const LoadingState = () => (
   <div className="min-h-screen p-2 md:p-4 bg-background text-foreground"> {/* COMPRESSED: Less padding */}
     <div className="mx-auto max-w-6xl">
-      <div className="animate-pulse">
+      <div>
         <div className="h-6 bg-gray-200 rounded-md w-1/2 mx-auto mb-3"></div> {/* COMPRESSED: Smaller height and margin */}
         <div className="h-20 bg-gray-200 rounded-md mb-3"></div> {/* COMPRESSED: Smaller height and margin */}
         <div className="h-8 bg-gray-200 rounded-md mb-3"></div> {/* COMPRESSED: Smaller height and margin */}

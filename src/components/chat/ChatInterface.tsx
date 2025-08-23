@@ -545,7 +545,7 @@ export default function ChatInterface({
 
         {isLoading && (
           <div className="mt-4 flex items-center justify-center p-2">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <Loader2 className="h-5 w-5 text-primary" />
             <span className="ml-2 text-sm text-muted-foreground">
               Assistant is thinking…
             </span>
@@ -599,7 +599,7 @@ export default function ChatInterface({
           )}
         >
           {isLoading
-            ? <Loader2 className="h-5 w-5 animate-spin" />
+            ? <Loader2 className="h-5 w-5" />
             : <ArrowRightCircle className="h-5 w-5" />}
         </button>
       </div>

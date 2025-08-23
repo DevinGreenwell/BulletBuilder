@@ -153,7 +153,7 @@ export default function SpeechToText({
           className={isListening ? 'recording-pulse' : ''}
         >
           {isListening ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="h-5 w-5" />
           ) : (
             <Mic className="h-5 w-5" />
           )}

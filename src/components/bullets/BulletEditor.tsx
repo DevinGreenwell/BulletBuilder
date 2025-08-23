@@ -638,9 +638,6 @@ export default function BulletEditor({
                   <div>
                     <div className="text-sm font-medium">{bullet.competency}</div>
                     <div className="text-xs text-muted-foreground">{bullet.category}</div>
-                    {bullet.source && (
-                      <div className="text-xs text-muted-foreground">Source: {bullet.source}</div>
-                    )}
                   </div>
                   
                   <div className="mt-2 sm:mt-0 flex flex-wrap gap-2">
