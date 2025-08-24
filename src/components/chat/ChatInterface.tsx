@@ -10,8 +10,6 @@ import {
 } from 'react';
 import { ArrowRightCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import SpeechToText from '@/components/speech/SpeechToText';
-import MobileSpeechButton from '@/components/speech/MobileSpeechButton';
 
 /* ─────────────────────────  type definitions  ───────────────────────── */
 export interface DisplayMessage {
@@ -301,21 +299,6 @@ export default function ChatInterface({
     return { isBullet: false, bulletContent: '' };
   }
 
-  /* ───────────  Speech-to-text handler  ─────────── */
-  const handleSpeechTranscript = useCallback((transcript: string) => {
-    setInput(prev => {
-      // If there's already text, append with space
-      if (prev.trim()) {
-        return `${prev.trim()} ${transcript}`;
-      }
-      return transcript;
-    });
-    
-    // Focus the input after transcription completes
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-  }, []);
 
   /* ───────────  API call  ─────────── */
   const handleSendMessage = async () => {
@@ -503,7 +486,7 @@ export default function ChatInterface({
       >
         {displayMessages.length === 0 ? (
           <div className="mt-10 px-4 text-center text-muted-foreground">
-            <p>Enter your achievement below or use the microphone to speak.</p>
+            <p>Enter your achievement below.</p>
             <p className="mt-2 text-sm">
               The assistant will refine it into a {' '}
               {selectedCompetency} bullet for ({rankCategory} {rank}).
@@ -572,19 +555,10 @@ export default function ChatInterface({
           disabled={isLoading}
           className={cn(
             'w-full resize-none rounded-md border border-input bg-background',
-            'pr-24 pb-2 pl-2 pt-2 text-foreground placeholder:text-muted-foreground',
-            isMobile ? 'input-container-mobile' : '',
+            'pr-14 pb-2 pl-2 pt-2 text-foreground placeholder:text-muted-foreground',
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
           )}
         />
-        
-        {/* Desktop Speech-to-text button (hidden on mobile) */}
-        <div className="absolute right-14 top-1/2 -translate-y-1/2 hidden md:block">
-          <SpeechToText 
-            onTranscript={handleSpeechTranscript} 
-            isDisabled={isLoading} 
-          />
-        </div>
         
         {/* Send button */}
         <button
@@ -604,11 +578,6 @@ export default function ChatInterface({
         </button>
       </div>
 
-      {/* Mobile Floating Speech Button (only visible on mobile) - FIXED: Removed duplicate */}
-      <MobileSpeechButton 
-        onTranscript={handleSpeechTranscript}
-        isDisabled={isLoading}
-      />
     </div>
   );
 }
